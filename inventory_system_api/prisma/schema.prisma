@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  users     User[]
+  roles     Role[]
+  products  Product[]
+  createdAt DateTime @default(now())
+}
+
+model User {
+  id           String @id @default(uuid())
+  email        String
+  passwordHash String
+  companyId    String
+  roleId       String
+
+  company Company @relation(fields: [companyId], references: [id])
+  role    Role    @relation(fields: [roleId], references: [id])
+
+  userPermissions UserPermission[]
+
+  @@unique([email, companyId])
+}
+
+model Role {
+  id        String @id @default(uuid())
+  name      String
+  companyId String
+
+  company Company @relation(fields: [companyId], references: [id])
+  users   User[]
+
+  rolePermissions RolePermission[]
+
+  @@unique([name, companyId])
+}
+
+model Permission {
+  id   String @id @default(uuid())
+  name String @unique
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+}
+
+model RolePermission {
+  id           String @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+model UserPermission {
+  id           String @id @default(uuid())
+  userId       String
+  permissionId String
+
+  user       User       @relation(fields: [userId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([userId, permissionId])
+}
+
+model Product {
+  id        String @id @default(uuid())
+  name      String
+  barcode   String
+  companyId String
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  inventory Inventory?
+
+  @@unique([barcode, companyId])
+}
+
+model Inventory {
+  id        String @id @default(uuid())
+  productId String @unique
+  quantity  Int
+  companyId String
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model ActivationCode {
+  id        String  @id @default(uuid())
+  code      String  @unique
+  isUsed    Boolean @default(false)
+  companyId String?
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  userId    String
+  companyId String
+  details   String?
+  createdAt DateTime @default(now())
+}
