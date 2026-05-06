@@ -60,4 +60,20 @@ export class ProductController extends BaseController {
       return this.fail(res, e.message);
     }
   };
+
+  delete = async (req: any, res: any) => {
+    try {
+      const productId = req.params.id;
+
+      const data = await this.service.deleteProduct(
+        productId,
+        req.user.companyId,
+        req.user.userId
+      );
+
+      return this.ok(res, data);
+    } catch (e: any) {
+      return this.fail(res, e.message);
+    }
+  };
 }

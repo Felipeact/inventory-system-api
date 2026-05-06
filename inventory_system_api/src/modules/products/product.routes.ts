@@ -35,4 +35,11 @@ router.get(
   controller.getAll
 );
 
+router.delete(
+  '/:id',
+  authMiddleware,
+  // requirePermission('ADD_PRODUCT'),
+  controller.delete
+);
+
 export default router;

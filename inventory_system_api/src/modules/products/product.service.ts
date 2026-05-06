@@ -6,56 +6,56 @@ export class ProductService {
   private audit = new AuditService();
 
   async create(dto: any, companyId: string, userId: string) {
-  const { name, barcode, quantity } = dto;
+    const { name, barcode, quantity } = dto;
 
-  const initialQuantity = Number(quantity ?? 0);
+    const initialQuantity = Number(quantity ?? 0);
 
-  if (!name || !barcode) {
-    throw new Error('name and barcode are required');
-  }
-
-  if (initialQuantity < 0) {
-    throw new Error('quantity cannot be negative');
-  }
-
-  const product = await this.repo.create({
-    name: name.trim(),
-    barcode: barcode.trim(),
-    companyId,
-    inventory: {
-      create: {
-        quantity: initialQuantity,
-        companyId
-      }
+    if (!name || !barcode) {
+      throw new Error('name and barcode are required');
     }
-  });
 
-  await this.audit.log(
-    'CREATE_PRODUCT',
-    userId,
-    companyId,
-    `Created ${product.name} with quantity ${initialQuantity}`
-  );
+    if (initialQuantity < 0) {
+      throw new Error('quantity cannot be negative');
+    }
 
-  return product;
-}
+    const product = await this.repo.create({
+      name: name.trim(),
+      barcode: barcode.trim(),
+      companyId,
+      inventory: {
+        create: {
+          quantity: initialQuantity,
+          companyId
+        }
+      }
+    });
+
+    await this.audit.log(
+      'CREATE_PRODUCT',
+      userId,
+      companyId,
+      `Created ${product.name} with quantity ${initialQuantity}`
+    );
+
+    return product;
+  }
 
   async scanIn(barcode: string, quantity: number, companyId: string, userId: string) {
-  const product = await this.repo.findByBarcode(barcode.trim(), companyId);
-  if (!product) throw new Error('Product not found');
+    const product = await this.repo.findByBarcode(barcode.trim(), companyId);
+    if (!product) throw new Error('Product not found');
 
-  const amount = Number(quantity);
+    const amount = Number(quantity);
 
-  if (!amount || amount <= 0) {
-    throw new Error('Quantity must be greater than 0');
+    if (!amount || amount <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    const updated = await this.repo.updateInventory(product.id, amount);
+
+    await this.audit.log('SCAN_IN', userId, companyId, `${barcode} +${amount}`);
+
+    return updated;
   }
-
-  const updated = await this.repo.updateInventory(product.id, amount);
-
-  await this.audit.log('SCAN_IN', userId, companyId, `${barcode} +${amount}`);
-
-  return updated;
-}
 
   async getAll(companyId: string) {
     return this.repo.getAll(companyId);
@@ -63,25 +63,46 @@ export class ProductService {
 
 
   async scanOut(barcode: string, quantity: number, companyId: string, userId: string) {
-  const product = await this.repo.findByBarcode(barcode.trim(), companyId);
-  if (!product) throw new Error('Product not found');
+    const product = await this.repo.findByBarcode(barcode.trim(), companyId);
+    if (!product) throw new Error('Product not found');
 
-  const amount = Number(quantity);
+    const amount = Number(quantity);
 
-  if (!amount || amount <= 0) {
-    throw new Error('Quantity must be greater than 0');
+    if (!amount || amount <= 0) {
+      throw new Error('Quantity must be greater than 0');
+    }
+
+    const inventory = await this.repo.getInventory(product.id);
+
+    if (!inventory || inventory.quantity < amount) {
+      throw new Error('Not enough stock');
+    }
+
+    const updated = await this.repo.updateInventory(product.id, -amount);
+
+    await this.audit.log('SCAN_OUT', userId, companyId, `${barcode} -${amount}`);
+
+    return updated;
   }
 
-  const inventory = await this.repo.getInventory(product.id);
+  async deleteProduct(productId: string, companyId: string, userId: string) {
+    if (!productId) {
+      throw new Error('Product id is required');
+    }
 
-  if (!inventory || inventory.quantity < amount) {
-    throw new Error('Not enough stock');
+    const deleted = await this.repo.delete(productId, companyId);
+
+    if (deleted.count === 0) {
+      throw new Error('Product not found');
+    }
+
+    await this.audit.log(
+      'DELETE_PRODUCT',
+      userId,
+      companyId,
+      `Deleted product ${productId}`
+    );
+
+    return { message: 'Product deleted successfully' };
   }
-
-  const updated = await this.repo.updateInventory(product.id, -amount);
-
-  await this.audit.log('SCAN_OUT', userId, companyId, `${barcode} -${amount}`);
-
-  return updated;
-}
 }

@@ -29,5 +29,25 @@ export class ProductRepository {
       where: { companyId },
       include: { inventory: true }
     });
-  } 
+  }
+
+  async delete(productId: string, companyId: string) {
+  return prisma.$transaction(async (tx) => {
+    await tx.inventory.deleteMany({
+      where: {
+        productId,
+        companyId
+      }
+    });
+
+    const deletedProduct = await tx.product.deleteMany({
+      where: {
+        id: productId,
+        companyId
+      }
+    });
+
+    return deletedProduct;
+  });
+}
 }
