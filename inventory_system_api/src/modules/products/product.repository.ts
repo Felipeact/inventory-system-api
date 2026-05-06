@@ -31,23 +31,66 @@ export class ProductRepository {
     });
   }
 
+  async update(productId: string, companyId: string, data: {
+    name: string;
+    barcode: string;
+    quantity: number;
+  }) {
+    return prisma.$transaction(async (tx) => {
+      const product = await tx.product.updateMany({
+        where: {
+          id: productId,
+          companyId
+        },
+        data: {
+          name: data.name,
+          barcode: data.barcode
+        }
+      });
+
+      if (product.count === 0) {
+        throw new Error('Product not found');
+      }
+
+      await tx.inventory.updateMany({
+        where: {
+          productId,
+          companyId
+        },
+        data: {
+          quantity: data.quantity
+        }
+      });
+
+      return tx.product.findFirst({
+        where: {
+          id: productId,
+          companyId
+        },
+        include: {
+          inventory: true
+        }
+      });
+    });
+  }
+
   async delete(productId: string, companyId: string) {
-  return prisma.$transaction(async (tx) => {
-    await tx.inventory.deleteMany({
-      where: {
-        productId,
-        companyId
-      }
-    });
+    return prisma.$transaction(async (tx) => {
+      await tx.inventory.deleteMany({
+        where: {
+          productId,
+          companyId
+        }
+      });
 
-    const deletedProduct = await tx.product.deleteMany({
-      where: {
-        id: productId,
-        companyId
-      }
-    });
+      const deletedProduct = await tx.product.deleteMany({
+        where: {
+          id: productId,
+          companyId
+        }
+      });
 
-    return deletedProduct;
-  });
-}
+      return deletedProduct;
+    });
+  }
 }

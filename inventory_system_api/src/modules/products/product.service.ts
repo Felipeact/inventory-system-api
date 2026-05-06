@@ -85,6 +85,39 @@ export class ProductService {
     return updated;
   }
 
+  async updateProduct(productId: string, dto: any, companyId: string, userId: string) {
+    const { name, barcode, quantity } = dto;
+
+    if (!productId) {
+      throw new Error('Product id is required');
+    }
+
+    if (!name || !barcode) {
+      throw new Error('name and barcode are required');
+    }
+
+    const parsedQuantity = Number(quantity);
+
+    if (isNaN(parsedQuantity) || parsedQuantity < 0) {
+      throw new Error('quantity must be 0 or greater');
+    }
+
+    const updated = await this.repo.update(productId, companyId, {
+      name: name.trim(),
+      barcode: barcode.trim(),
+      quantity: parsedQuantity
+    });
+
+    await this.audit.log(
+      'UPDATE_PRODUCT',
+      userId,
+      companyId,
+      `Updated product ${productId}`
+    );
+
+    return updated;
+  }
+
   async deleteProduct(productId: string, companyId: string, userId: string) {
     if (!productId) {
       throw new Error('Product id is required');

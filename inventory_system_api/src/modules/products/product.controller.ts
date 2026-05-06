@@ -61,6 +61,23 @@ export class ProductController extends BaseController {
     }
   };
 
+  update = async (req: any, res: any) => {
+    try {
+      const productId = req.params.id;
+
+      const data = await this.service.updateProduct(
+        productId,
+        req.body,
+        req.user.companyId,
+        req.user.userId
+      );
+
+      return this.ok(res, data);
+    } catch (e: any) {
+      return this.fail(res, e.message);
+    }
+  };
+
   delete = async (req: any, res: any) => {
     try {
       const productId = req.params.id;
