@@ -28,7 +28,7 @@ router.get(
   controller.getById
 );
 
-router.patch(
+router.put(
   '/:id',
   authMiddleware,
   requirePermission(PERMISSIONS.EDIT_ASSET),

@@ -5,6 +5,7 @@ import authRoutes from './modules/auth/auth.routes';
 import productRoutes from './modules/products/product.routes';
 import dotenv from 'dotenv';
 import userRoutes from './modules/user/user.routes';
+import assetRoutes from './modules/asset/asset.routes';
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ app.get('/', (req, res) => {
 
 app.use('/auth', authRoutes);
 app.use('/products', productRoutes);
+app.use('/assets', assetRoutes);
 app.use('/users', userRoutes);
 
 app.listen(process.env.PORT, () => {
