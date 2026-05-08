@@ -1,124 +1,91 @@
 import { BaseController } from '../../core/base.controller';
 import { ProductService } from './product.service';
+import { asyncHandler } from '../../core/async-handler';
 
 export class ProductController extends BaseController {
   private service = new ProductService();
 
-  create = async (req: any, res: any) => {
-    try {
-      const data = await this.service.create(
-        req.body,
-        req.user.companyId,
-        req.user.userId
-      );
+  create = asyncHandler(async (req: any, res: any) => {
+    const data = await this.service.create(
+      req.body,
+      req.user.companyId,
+      req.user.userId
+    );
 
-      return this.created(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+    return this.created(res, data);
+  });
 
-  getById = async (req: any, res: any) => {
-    try {
-      const productId = req.params.id;
+  getById = asyncHandler(async (req: any, res: any) => {
+    const data = await this.service.getById(
+      req.params.id,
+      req.user.companyId
+    );
 
-      const data = await this.service.getById(
-        productId,
-        req.user.companyId
-      );
+    return this.ok(res, data);
+  });
 
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+  getLowStock = asyncHandler(async (req: any, res: any) => {
+    const data = await this.service.getLowStock(req.user.companyId);
+    return this.ok(res, data);
+  });
 
-  getLowStock = async (req: any, res: any) => {
-    try {
-      const data = await this.service.getLowStock(req.user.companyId);
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+  scanIn = asyncHandler(async (req: any, res: any) => {
+    const { barcode, quantity } = req.body;
 
-  scanIn = async (req: any, res: any) => {
-    try {
-      const { barcode, quantity } = req.body;
+    const data = await this.service.scanIn(
+      barcode,
+      Number(quantity),
+      req.user.companyId,
+      req.user.userId
+    );
 
-      const data = await this.service.scanIn(
-        barcode,
-        Number(quantity),
-        req.user.companyId,
-        req.user.userId
-      );
+    return this.ok(res, data);
+  });
 
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+  scanOut = asyncHandler(async (req: any, res: any) => {
+    const { barcode, quantity } = req.body;
 
-  scanOut = async (req: any, res: any) => {
-    try {
-      const { barcode, quantity } = req.body;
+    const data = await this.service.scanOut(
+      barcode,
+      Number(quantity),
+      req.user.companyId,
+      req.user.userId
+    );
 
-      const data = await this.service.scanOut(
-        barcode,
-        Number(quantity),
-        req.user.companyId,
-        req.user.userId
-      );
+    return this.ok(res, data);
+  });
 
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+  getAll = asyncHandler(async (req: any, res: any) => {
+    const data = await this.service.getAll(
+      req.user.companyId,
+      req.query
+    );
 
-  getAll = async (req: any, res: any) => {
-    try {
-      const data = await this.service.getAll(
-        req.user.companyId,
-        req.query
-      );
+    return this.ok(res, data);
+  });
 
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+  update = asyncHandler(async (req: any, res: any) => {
+    const productId = req.params.id;
 
-  update = async (req: any, res: any) => {
-    try {
-      const productId = req.params.id;
+    const data = await this.service.updateProduct(
+      productId,
+      req.body,
+      req.user.companyId,
+      req.user.userId
+    );
 
-      const data = await this.service.updateProduct(
-        productId,
-        req.body,
-        req.user.companyId,
-        req.user.userId
-      );
+    return this.ok(res, data);
+  });
 
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+  delete = asyncHandler(async (req: any, res: any) => {
+    const productId = req.params.id;
 
-  delete = async (req: any, res: any) => {
-    try {
-      const productId = req.params.id;
+    const data = await this.service.deleteProduct(
+      productId,
+      req.user.companyId,
+      req.user.userId
+    );
 
-      const data = await this.service.deleteProduct(
-        productId,
-        req.user.companyId,
-        req.user.userId
-      );
-
-      return this.ok(res, data);
-    } catch (e: any) {
-      return this.fail(res, e.message);
-    }
-  };
+    return this.ok(res, data);
+  });
 }

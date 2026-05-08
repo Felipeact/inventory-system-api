@@ -1,5 +1,6 @@
 import { AssetRepository } from './asset.repository';
 import { AuditService } from '../../audit/audit.service';
+import { AppError } from '../../core/app-error';
 
 export class AssetService {
   private repo = new AssetRepository();
@@ -9,12 +10,12 @@ export class AssetService {
     const { name, type, serialCode, status, description } = dto;
 
     if (!name || !type || !serialCode) {
-      throw new Error('name, type, and serialCode are required');
+      throw new AppError('name, type, and serialCode are required', 400);
     }
 
     const existingAsset = await this.repo.findBySerialCode(serialCode.trim(), companyId);
     if (existingAsset) {
-      throw new Error('Asset with this serial code already exists');
+      throw new AppError('Asset with this serial code already exists', 409);
     }
 
     const asset = await this.repo.create({
@@ -43,19 +44,19 @@ export class AssetService {
   async getById(id: string, companyId: string) {
     const asset = await this.repo.getById(id, companyId);
     if (!asset) {
-      throw new Error('Asset not found');
+      throw new AppError('Asset not found', 404);
     }
     return asset;
   }
 
   async updateAsset(id: string, dto: any, companyId: string, userId: string) {
     if (!id) {
-      throw new Error('Asset id is required');
+      throw new AppError('Asset id is required', 400);
     }
 
     const asset = await this.repo.getById(id, companyId);
     if (!asset) {
-      throw new Error('Asset not found');
+      throw new AppError('Asset not found', 404);
     }
 
     const updateData: any = {};
@@ -78,18 +79,18 @@ export class AssetService {
 
   async deleteAsset(id: string, companyId: string, userId: string) {
     if (!id) {
-      throw new Error('Asset id is required');
+      throw new AppError('Asset id is required', 400);
     }
 
     const asset = await this.repo.getById(id, companyId);
     if (!asset) {
-      throw new Error('Asset not found');
+      throw new AppError('Asset not found', 404);
     }
 
     const deleted = await this.repo.delete(id, companyId);
 
     if (deleted.count === 0) {
-      throw new Error('Asset not found');
+      throw new AppError('Asset not found', 404);
     }
 
     await this.audit.log(

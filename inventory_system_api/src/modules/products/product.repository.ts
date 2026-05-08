@@ -53,12 +53,6 @@ export class ProductRepository {
     });
   }
 
-  getAll(companyId: string) {
-    return prisma.product.findMany({
-      where: { companyId },
-      include: { inventory: true }
-    });
-  }
 
   async findAll(companyId: string, search?: string, page = 1, limit = 20) {
   const skip = (page - 1) * limit;

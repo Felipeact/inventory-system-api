@@ -1,5 +1,6 @@
 import { ProductRepository } from './product.repository';
 import { AuditService } from '../../audit/audit.service';
+import { AppError } from '../../core/app-error';
 
 export class ProductService {
   private repo = new ProductRepository();
@@ -12,11 +13,11 @@ export class ProductService {
     const threshold = Number(lowStockThreshold ?? 5);
 
     if (!name || !barcode) {
-      throw new Error('name and barcode are required');
+      throw new AppError('name and barcode are required', 400);
     }
 
     if (initialQuantity < 0) {
-      throw new Error('quantity cannot be negative');
+      throw new AppError('quantity cannot be negative', 400);
     }
 
     const product = await this.repo.create({
@@ -44,12 +45,12 @@ export class ProductService {
 
   async scanIn(barcode: string, quantity: number, companyId: string, userId: string) {
     const product = await this.repo.findByBarcode(barcode.trim(), companyId);
-    if (!product) throw new Error('Product not found');
+    if (!product) throw new AppError('Product not found', 404);
 
     const amount = Number(quantity);
 
     if (!amount || amount <= 0) {
-      throw new Error('Quantity must be greater than 0');
+      throw new AppError('Quantity must be greater than 0', 400);
     }
 
     const updated = await this.repo.updateInventory(product.id, amount);
@@ -69,29 +70,29 @@ export class ProductService {
   const limit = query.limit ? Number(query.limit) : 20;
 
   if (page < 1) {
-    throw new Error('Page must be greater than 0');
+    throw new AppError('Page must be greater than 0', 400);
   }
 
   if (limit < 1 || limit > 100) {
-    throw new Error('Limit must be between 1 and 100');
+    throw new AppError('Limit must be between 1 and 100', 400);
   }
 
   return this.repo.findAll(companyId, search, page, limit);
 }
 
   async getById(productId: string, companyId: string) {
-    if (!productId) {
-      throw new Error('Product id is required');
-    }
-
-    const product = await this.repo.findById(productId, companyId);
-
-    if (!product) {
-      throw new Error('Product not found');
-    }
-
-    return product;
+  if (!productId) {
+    throw new AppError('Product id is required', 400);
   }
+
+  const product = await this.repo.findById(productId, companyId);
+
+  if (!product) {
+    throw new AppError('Product not found', 404);
+  }
+
+  return product;
+}
 
   async getLowStock(companyId: string) {
     return this.repo.findLowStock(companyId);
@@ -111,7 +112,7 @@ export class ProductService {
     const inventory = await this.repo.getInventory(product.id);
 
     if (!inventory || inventory.quantity < amount) {
-      throw new Error('Not enough stock');
+      throw new AppError('Not enough stock', 422);
     }
 
     const updated = await this.repo.updateInventory(product.id, -amount);
@@ -125,17 +126,17 @@ export class ProductService {
     const { name, barcode, quantity } = dto;
 
     if (!productId) {
-      throw new Error('Product id is required');
+      throw new AppError('Product id is required', 400);
     }
 
     if (!name || !barcode) {
-      throw new Error('name and barcode are required');
+      throw new AppError('name and barcode are required', 400);
     }
 
     const parsedQuantity = Number(quantity);
 
     if (isNaN(parsedQuantity) || parsedQuantity < 0) {
-      throw new Error('quantity must be 0 or greater');
+      throw new AppError('quantity must be 0 or greater', 400);
     }
 
     const updated = await this.repo.update(productId, companyId, {
@@ -156,13 +157,13 @@ export class ProductService {
 
   async deleteProduct(productId: string, companyId: string, userId: string) {
     if (!productId) {
-      throw new Error('Product id is required');
+      throw new AppError('Product id is required', 400);
     }
 
     const deleted = await this.repo.delete(productId, companyId);
 
     if (deleted.count === 0) {
-      throw new Error('Product not found');
+      throw new AppError('Product not found', 404);
     }
 
     await this.audit.log(

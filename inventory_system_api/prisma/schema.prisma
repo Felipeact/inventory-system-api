@@ -32,9 +32,21 @@ model User {
   company Company @relation(fields: [companyId], references: [id])
   role    Role    @relation(fields: [roleId], references: [id])
 
+  refreshTokens RefreshToken[]
   userPermissions UserPermission[]
 
   @@unique([email, companyId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  companyId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model Role {

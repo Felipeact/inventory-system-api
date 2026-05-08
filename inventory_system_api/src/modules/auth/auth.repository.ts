@@ -28,6 +28,35 @@ export class AuthRepository {
     });
   }
 
+  createRefreshToken(data: {
+    token: string;
+    userId: string;
+    companyId: string;
+    expiresAt: Date;
+  }) {
+    return prisma.refreshToken.create({
+      data
+    });
+  }
+
+  findRefreshToken(token: string) {
+    return prisma.refreshToken.findUnique({
+      where: { token }
+    });
+  }
+
+  deleteRefreshToken(token: string) {
+    return prisma.refreshToken.deleteMany({
+      where: { token }
+    });
+  }
+
+  deleteUserRefreshTokens(userId: string) {
+    return prisma.refreshToken.deleteMany({
+      where: { userId }
+    });
+  }
+
   findUser(email: string) {
     return prisma.user.findFirst({
       where: { email },

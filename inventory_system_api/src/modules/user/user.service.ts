@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { UserRepository } from './user.repository';
+import { AppError } from '../../core/app-error';
 
 export class UserService {
   private repo = new UserRepository();
@@ -8,13 +9,13 @@ export class UserService {
     const { email, password, roleName } = dto;
 
     if (!email || !password || !roleName) {
-      throw new Error('email, password, and roleName are required');
+      throw new AppError('email, password, and roleName are required', 400);
     }
 
     const normalizedRole = roleName.toUpperCase();
 
     const role = await this.repo.findRoleByName(normalizedRole, companyId);
-    if (!role) throw new Error('Role not found');
+    if (!role) throw new AppError('Role not found', 404);
 
     const passwordHash = await bcrypt.hash(password, 10);
 
@@ -30,24 +31,24 @@ export class UserService {
     const { userId, permissionName } = dto;
 
     if (!userId || !permissionName) {
-      throw new Error('userId and permissionName are required');
+      throw new AppError('userId and permissionName are required', 400);
     }
 
     if (typeof userId !== 'string') {
-      throw new Error('userId must be a string');
+      throw new AppError('userId must be a string', 400);
     }
 
     if (typeof permissionName !== 'string') {
-      throw new Error('permissionName must be a string');
+      throw new AppError('permissionName must be a string', 400);
     }
 
     const user = await this.repo.findUserInCompany(userId, companyId);
-    if (!user) throw new Error('User not found in this company');
+    if (!user) throw new AppError('User not found in this company', 404);
 
     const normalizedPermission = permissionName.toUpperCase();
 
     const permission = await this.repo.findPermissionByName(normalizedPermission);
-    if (!permission) throw new Error('Permission not found');
+    if (!permission) throw new AppError('Permission not found', 404);
 
     await this.repo.assignPermission(userId, permission.id);
 
@@ -62,24 +63,24 @@ export class UserService {
     const { userId, permissionName } = dto;
 
     if (!userId || !permissionName) {
-      throw new Error('userId and permissionName are required');
+      throw new AppError('userId and permissionName are required', 400);
     }
 
     if (typeof userId !== 'string') {
-      throw new Error('userId must be a string');
+      throw new AppError('userId must be a string', 400);
     }
 
     if (typeof permissionName !== 'string') {
-      throw new Error('permissionName must be a string');
+      throw new AppError('permissionName must be a string', 400);
     }
 
     const user = await this.repo.findUserInCompany(userId, companyId);
-    if (!user) throw new Error('User not found in this company');
+    if (!user) throw new AppError('User not found in this company', 404);
 
     const normalizedPermission = permissionName.toUpperCase();
 
     const permission = await this.repo.findPermissionByName(normalizedPermission);
-    if (!permission) throw new Error('Permission not found');
+    if (!permission) throw new AppError('Permission not found', 404);
 
     await this.repo.removePermission(userId, permission.id);
 
