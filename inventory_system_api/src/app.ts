@@ -6,6 +6,7 @@ import productRoutes from './modules/products/product.routes';
 import dotenv from 'dotenv';
 import userRoutes from './modules/user/user.routes';
 import assetRoutes from './modules/asset/asset.routes';
+import reportRoutes from './modules/report/report.routes';
 
 import { errorMiddleware } from './middleware/error.middleware';
 import { generalRateLimiter } from './middleware/rate-limit.middleware';
@@ -28,6 +29,7 @@ app.use('/auth', authRoutes);
 app.use('/products', productRoutes);
 app.use('/assets', assetRoutes);
 app.use('/users', userRoutes);
+app.use('/reports', reportRoutes);
 
 app.use(errorMiddleware);
 

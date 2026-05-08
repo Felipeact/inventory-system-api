@@ -20,6 +20,11 @@ model Company {
   products  Product[]
   assets    Asset[]
   createdAt DateTime @default(now())
+
+  plan                String @default("STARTER")
+  subscriptionStatus  String @default("ACTIVE")
+  maxUsers            Int    @default(3)
+  maxProducts         Int    @default(100)
 }
 
 model User {
@@ -131,7 +136,14 @@ model ActivationCode {
   code      String  @unique
   isUsed    Boolean @default(false)
   companyId String?
+
+  plan      String  @default("STARTER")
+  maxUsers  Int     @default(3)
+  maxProducts Int   @default(100)
 }
+
+
+
 
 model AuditLog {
   id        String   @id @default(uuid())
