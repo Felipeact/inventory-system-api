@@ -101,12 +101,12 @@ export class ProductService {
 
   async scanOut(barcode: string, quantity: number, companyId: string, userId: string) {
     const product = await this.repo.findByBarcode(barcode.trim(), companyId);
-    if (!product) throw new Error('Product not found');
+    if (!product) throw new AppError('Product not found', 404);
 
     const amount = Number(quantity);
 
     if (!amount || amount <= 0) {
-      throw new Error('Quantity must be greater than 0');
+      throw new AppError('Quantity must be greater than 0', 400);
     }
 
     const inventory = await this.repo.getInventory(product.id);
