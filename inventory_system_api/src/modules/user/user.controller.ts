@@ -11,7 +11,8 @@ export class UserController extends BaseController {
   create = asyncHandler(async (req: AuthRequest, res: Response) => {
     const data = await this.service.createUser(
       req.body,
-      req.user!.companyId
+      req.user!.companyId,
+      req.user!.userId
     );
 
     return this.created(res, data);
@@ -20,7 +21,8 @@ export class UserController extends BaseController {
   assignPermission = asyncHandler(async (req: AuthRequest, res: Response) => {
     const data = await this.service.assignPermission(
       req.body,
-      req.user!.companyId
+      req.user!.companyId,
+      req.user!.userId
     );
 
     return this.ok(res, data);
@@ -29,7 +31,8 @@ export class UserController extends BaseController {
   removePermission = asyncHandler(async (req: AuthRequest, res: Response) => {
     const data = await this.service.removePermission(
       req.body,
-      req.user!.companyId
+      req.user!.companyId,
+      req.user!.userId
     );
 
     return this.ok(res, data);
@@ -47,7 +50,11 @@ export class UserController extends BaseController {
       throw new AppError('User id must be a string', 400);
     }
 
-    await this.service.deleteUser(id, req.user!.companyId);
+    await this.service.deleteUser(
+      id,
+      req.user!.companyId,
+      req.user!.userId
+    );
 
     return this.ok(res, { message: 'Deleted' });
   });

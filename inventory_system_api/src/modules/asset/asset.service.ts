@@ -5,8 +5,9 @@ import { AppError } from '../../core/app-error';
 export class AssetService {
   private repo = new AssetRepository();
   private audit = new AuditService();
+  
 
-  async create(dto: any, companyId: string, userId: string) {
+  async create(dto: any, companyId: string, userId: string, ) {
     const { name, type, serialCode, status, description } = dto;
 
     if (!name || !type || !serialCode) {

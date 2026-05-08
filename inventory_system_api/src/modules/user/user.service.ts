@@ -1,11 +1,13 @@
 import bcrypt from 'bcrypt';
 import { UserRepository } from './user.repository';
 import { AppError } from '../../core/app-error';
+import { AuditService } from '../../audit/audit.service';
 
 export class UserService {
   private repo = new UserRepository();
+  private audit = new AuditService();
 
-  async createUser(dto: any, companyId: string) {
+  async createUser(dto: any, companyId: string, adminUserId: string) {
     const { email, password, roleName } = dto;
 
     if (!email || !password || !roleName) {
@@ -19,6 +21,13 @@ export class UserService {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    await this.audit.log(
+      'CREATE_USER',
+      adminUserId,
+      companyId,
+      `Created user ${email} with role ${normalizedRole}`
+    );
+
     return this.repo.create({
       email,
       passwordHash,
@@ -27,7 +36,7 @@ export class UserService {
     });
   }
 
-  async assignPermission(dto: any, companyId: string) {
+  async assignPermission(dto: any, companyId: string, adminUserId: string) {
     const { userId, permissionName } = dto;
 
     if (!userId || !permissionName) {
@@ -52,6 +61,13 @@ export class UserService {
 
     await this.repo.assignPermission(userId, permission.id);
 
+    await this.audit.log(
+      'ASSIGN_PERMISSION',
+      adminUserId,
+      companyId,
+      `Assigned ${normalizedPermission} to user ${userId}`
+    );
+
     return {
       message: 'Permission assigned successfully',
       userId,
@@ -59,7 +75,7 @@ export class UserService {
     };
   }
 
-  async removePermission(dto: any, companyId: string) {
+  async removePermission(dto: any, companyId: string, adminUserId: string) {
     const { userId, permissionName } = dto;
 
     if (!userId || !permissionName) {
@@ -84,6 +100,13 @@ export class UserService {
 
     await this.repo.removePermission(userId, permission.id);
 
+    await this.audit.log(
+      'REMOVE_PERMISSION',
+      adminUserId,
+      companyId,
+      `Removed ${normalizedPermission} from user ${userId}`
+    );
+
     return {
       message: 'Permission removed successfully',
       userId,
@@ -95,7 +118,16 @@ export class UserService {
     return this.repo.findAll(companyId);
   }
 
-  deleteUser(userId: string, companyId: string) {
+  async deleteUser(userId: string, companyId: string, adminUserId: string) {
+
+    await this.audit.log(
+      'DELETE_USER',
+      adminUserId,
+      companyId,
+      `Deleted user ${userId}`
+    );
+
+
     return this.repo.delete(userId, companyId);
   }
 }

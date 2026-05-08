@@ -65,4 +65,34 @@ export class AuthRepository {
       },
     });
   }
+
+  createPasswordResetToken(data: {
+    token: string;
+    userId: string;
+    expiresAt: Date;
+  }) {
+    return prisma.passwordResetToken.create({ data });
+  }
+
+  findPasswordResetToken(token: string) {
+    return prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true }
+    });
+  }
+
+  markPasswordResetTokenUsed(token: string) {
+    return prisma.passwordResetToken.update({
+      where: { token },
+      data: { used: true }
+    });
+  }
+
+  updateUserPassword(userId: string, passwordHash: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash }
+    });
+  }
 }
+
