@@ -37,8 +37,24 @@ export class AssetService {
     return asset;
   }
 
-  async getAll(companyId: string) {
-    return this.repo.getAll(companyId);
+  getAll(companyId: string, query: any) {
+    const search =
+      typeof query.search === 'string'
+        ? query.search
+        : undefined;
+
+    const page = query.page ? Number(query.page) : 1;
+    const limit = query.limit ? Number(query.limit) : 20;
+
+    if (page < 1) {
+      throw new AppError('Page must be greater than 0', 400);
+    }
+
+    if (limit < 1 || limit > 100) {
+      throw new AppError('Limit must be between 1 and 100', 400);
+    }
+
+    return this.repo.findAll(companyId, search, page, limit);
   }
 
   async getById(id: string, companyId: string) {

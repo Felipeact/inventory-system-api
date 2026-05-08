@@ -11,10 +11,48 @@ export class AssetRepository {
     });
   }
 
-  getAll(companyId: string) {
-    return prisma.asset.findMany({
-      where: { companyId }
-    });
+  async findAll(companyId: string, search?: string, page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      companyId
+    };
+
+    if (search) {
+      where.OR = [
+        {
+          name: {
+            contains: search,
+            mode: 'insensitive'
+          }
+        },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      prisma.asset.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          name: 'asc'
+        }
+      }),
+
+      prisma.asset.count({
+        where
+      })
+    ]);
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   getById(id: string, companyId: string) {

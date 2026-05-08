@@ -1,11 +1,12 @@
 import { BaseController } from '../../core/base.controller';
+import { Response } from 'express';
 import { AssetService } from './asset.service';
 import { asyncHandler } from '../../core/async-handler';
 
 export class AssetController extends BaseController {
   private service = new AssetService();
 
-  create = asyncHandler(async (req: any, res: any) => {
+  create = asyncHandler(async (req: any, res: Response) => {
     const data = await this.service.create(
       req.body,
       req.user.companyId,
@@ -15,18 +16,22 @@ export class AssetController extends BaseController {
     return this.created(res, data);
   });
 
-  getAll = asyncHandler(async (req: any, res: any) => {
-    const data = await this.service.getAll(req.user.companyId);
-    return this.ok(res, data);
-  });
+  getAll = asyncHandler(async (req: any, res: Response) => {
+  const data = await this.service.getAll(
+    req.user.companyId,
+    req.query
+  );
 
-  getById = asyncHandler(async (req: any, res: any) => {
+  return this.ok(res, data);
+});
+
+  getById = asyncHandler(async (req: any, res: Response) => {
     const assetId = req.params.id;
     const data = await this.service.getById(assetId, req.user.companyId);
     return this.ok(res, data);
   });
 
-  update = asyncHandler(async (req: any, res: any) => {
+  update = asyncHandler(async (req: any, res: Response) => {
     const assetId = req.params.id;
 
     const data = await this.service.updateAsset(
@@ -39,7 +44,7 @@ export class AssetController extends BaseController {
     return this.ok(res, data);
   });
 
-  delete = asyncHandler(async (req: any, res: any) => {
+  delete = asyncHandler(async (req: any, res: Response) => {
     const assetId = req.params.id;
 
     const data = await this.service.deleteAsset(

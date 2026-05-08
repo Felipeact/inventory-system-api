@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
+import { AppError } from '../core/app-error';
+
 
 export interface AuthRequest extends Request {
   user?: {
@@ -16,13 +18,13 @@ export const authMiddleware = async (
   res: Response,
   next: NextFunction
 ) => {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'No token' });
-  }
-
   try {
+    const token = req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      throw new AppError('No token provided', 401);
+    }
+
     const payload = jwt.verify(token, process.env.JWT_SECRET!) as {
       userId: string;
       companyId: string;
@@ -49,7 +51,7 @@ export const authMiddleware = async (
     });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid user' });
+      throw new AppError('Invalid user', 401);
     }
 
     const rolePermissions = user.role.rolePermissions.map(
@@ -72,7 +74,11 @@ export const authMiddleware = async (
     };
 
     next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid token' });
+  } catch (error) {
+    if (error instanceof AppError) {
+      next(error);
+    } else {
+      next(new AppError('Invalid token', 401));
+    }
   }
 };
