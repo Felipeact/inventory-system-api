@@ -18,6 +18,30 @@ export class ProductController extends BaseController {
     }
   };
 
+  getById = async (req: any, res: any) => {
+    try {
+      const productId = req.params.id;
+
+      const data = await this.service.getById(
+        productId,
+        req.user.companyId
+      );
+
+      return this.ok(res, data);
+    } catch (e: any) {
+      return this.fail(res, e.message);
+    }
+  };
+
+  getLowStock = async (req: any, res: any) => {
+    try {
+      const data = await this.service.getLowStock(req.user.companyId);
+      return this.ok(res, data);
+    } catch (e: any) {
+      return this.fail(res, e.message);
+    }
+  };
+
   scanIn = async (req: any, res: any) => {
     try {
       const { barcode, quantity } = req.body;
@@ -54,7 +78,11 @@ export class ProductController extends BaseController {
 
   getAll = async (req: any, res: any) => {
     try {
-      const data = await this.service.getAll(req.user.companyId);
+      const data = await this.service.getAll(
+        req.user.companyId,
+        req.query
+      );
+
       return this.ok(res, data);
     } catch (e: any) {
       return this.fail(res, e.message);

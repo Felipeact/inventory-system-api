@@ -6,9 +6,10 @@ export class ProductService {
   private audit = new AuditService();
 
   async create(dto: any, companyId: string, userId: string) {
-    const { name, barcode, quantity } = dto;
+    const { name, barcode, quantity, lowStockThreshold } = dto;
 
     const initialQuantity = Number(quantity ?? 0);
+    const threshold = Number(lowStockThreshold ?? 5);
 
     if (!name || !barcode) {
       throw new Error('name and barcode are required');
@@ -22,6 +23,7 @@ export class ProductService {
       name: name.trim(),
       barcode: barcode.trim(),
       companyId,
+      lowStockThreshold: threshold,
       inventory: {
         create: {
           quantity: initialQuantity,
@@ -57,8 +59,42 @@ export class ProductService {
     return updated;
   }
 
-  async getAll(companyId: string) {
-    return this.repo.getAll(companyId);
+  getAll(companyId: string, query: any) {
+  const search =
+    typeof query.search === 'string'
+      ? query.search
+      : undefined;
+
+  const page = query.page ? Number(query.page) : 1;
+  const limit = query.limit ? Number(query.limit) : 20;
+
+  if (page < 1) {
+    throw new Error('Page must be greater than 0');
+  }
+
+  if (limit < 1 || limit > 100) {
+    throw new Error('Limit must be between 1 and 100');
+  }
+
+  return this.repo.findAll(companyId, search, page, limit);
+}
+
+  async getById(productId: string, companyId: string) {
+    if (!productId) {
+      throw new Error('Product id is required');
+    }
+
+    const product = await this.repo.findById(productId, companyId);
+
+    if (!product) {
+      throw new Error('Product not found');
+    }
+
+    return product;
+  }
+
+  async getLowStock(companyId: string) {
+    return this.repo.findLowStock(companyId);
   }
 
 

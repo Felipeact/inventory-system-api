@@ -81,10 +81,11 @@ model UserPermission {
 }
 
 model Product {
-  id        String @id @default(uuid())
-  name      String
-  barcode   String
-  companyId String
+  id                String   @id @default(uuid())
+  name              String
+  barcode           String
+  companyId         String
+  lowStockThreshold Int      @default(5)
 
   company   Company   @relation(fields: [companyId], references: [id])
   inventory Inventory?

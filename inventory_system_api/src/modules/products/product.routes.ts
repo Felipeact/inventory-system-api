@@ -35,6 +35,20 @@ router.get(
   controller.getAll
 );
 
+router.get(
+  '/low-stock',
+  authMiddleware,
+  requirePermission(PERMISSIONS.VIEW_STOCK),
+  controller.getLowStock
+);
+
+router.get(
+  '/:id',
+  authMiddleware,
+  requirePermission(PERMISSIONS.VIEW_STOCK),
+  controller.getById
+);
+
 router.put(
   '/:id',
   authMiddleware,
