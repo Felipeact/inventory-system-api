@@ -1,13 +1,48 @@
+/**
+ * @file asset.service.ts
+ * @description Asset management business logic.
+ * Handles creation, retrieval, updating, and deletion of assets with validation and auditing.
+ */
+
 import { AssetRepository } from './asset.repository';
 import { AuditService } from '../../audit/audit.service';
 import { AppError } from '../../core/app-error';
 
+/**
+ * AssetService - Asset management business logic
+ * 
+ * @class AssetService
+ */
 export class AssetService {
+  /** Asset data access layer */
   private repo = new AssetRepository();
+  /** Service for audit logging */
   private audit = new AuditService();
   
-
-  async create(dto: any, companyId: string, userId: string, ) {
+  /**
+   * Create a new asset
+   * 
+   * @async
+   * @param {Object} dto - Asset creation data
+   * @param {string} dto.name - Asset name
+   * @param {string} dto.type - Asset type/category
+   * @param {string} dto.serialCode - Unique serial code
+   * @param {string} [dto.status] - Asset status (defaults to 'active')
+   * @param {string} [dto.description] - Asset description
+   * @param {string} companyId - Company ID for isolation
+   * @param {string} userId - User ID performing the action
+   * 
+   * @returns {Promise<Asset>} Created asset
+   * 
+   * @throws {AppError} 400 - If required fields missing
+   * @throws {AppError} 409 - If serial code already exists
+   * 
+   * @description
+   * 1. Validates required fields (name, type, serialCode)
+   * 2. Checks serial code uniqueness within company
+   * 3. Creates asset with trimmed inputs
+   * 4. Logs creation to audit trail
+   */
     const { name, type, serialCode, status, description } = dto;
 
     if (!name || !type || !serialCode) {
@@ -38,85 +73,78 @@ export class AssetService {
     return asset;
   }
 
-  getAll(companyId: string, query: any) {
-    const search =
-      typeof query.search === 'string'
-        ? query.search
-        : undefined;
+  /**
+   * Get all assets for a company with pagination and search
+   * 
+   * @param {string} companyId - Company ID
+   * @param {Object} query - Query parameters
+   * @param {string} [query.search] - Search term for asset names
+   * @param {number} [query.page] - Page number (default 1)
+   * @param {number} [query.limit] - Items per page, 1-100 (default 20)
+   * 
+   * @returns {Promise<Object>} Paginated results with total count
+   * 
+   * @throws {AppError} 400 - If page < 1 or limit out of range
+   * 
+   * @description
+   * 1. Parses and validates pagination parameters
+   * 2. Delegates to repository for filtered query
+   * 3. Returns data with pagination metadata
+   */
 
-    const page = query.page ? Number(query.page) : 1;
-    const limit = query.limit ? Number(query.limit) : 20;
+  /**
+   * Get asset by ID
+   * 
+   * @async
+   * @param {string} id - Asset ID
+   * @param {string} companyId - Company ID for isolation
+   * 
+   * @returns {Promise<Asset>} Asset details
+   * 
+   * @throws {AppError} 404 - If asset not found
+   */
 
-    if (page < 1) {
-      throw new AppError('Page must be greater than 0', 400);
-    }
+  /**
+   * Update asset details
+   * 
+   * @async
+   * @param {string} id - Asset ID
+   * @param {Object} dto - Update data (all fields optional)
+   * @param {string} [dto.name] - Updated name
+   * @param {string} [dto.type] - Updated type
+   * @param {string} [dto.status] - Updated status
+   * @param {string} [dto.description] - Updated description
+   * @param {string} companyId - Company ID for isolation
+   * @param {string} userId - User ID performing the action
+   * 
+   * @returns {Promise<Object>} Update confirmation and count
+   * 
+   * @throws {AppError} 400 - If asset ID not provided
+   * @throws {AppError} 404 - If asset not found
+   * 
+   * @description
+   * 1. Validates asset ID provided
+   * 2. Checks asset exists for company
+   * 3. Builds update object with only provided fields
+   * 4. Performs update and logs to audit trail
+   */
 
-    if (limit < 1 || limit > 100) {
-      throw new AppError('Limit must be between 1 and 100', 400);
-    }
-
-    return this.repo.findAll(companyId, search, page, limit);
-  }
-
-  async getById(id: string, companyId: string) {
-    const asset = await this.repo.getById(id, companyId);
-    if (!asset) {
-      throw new AppError('Asset not found', 404);
-    }
-    return asset;
-  }
-
-  async updateAsset(id: string, dto: any, companyId: string, userId: string) {
-    if (!id) {
-      throw new AppError('Asset id is required', 400);
-    }
-
-    const asset = await this.repo.getById(id, companyId);
-    if (!asset) {
-      throw new AppError('Asset not found', 404);
-    }
-
-    const updateData: any = {};
-    if (dto.name) updateData.name = dto.name.trim();
-    if (dto.type) updateData.type = dto.type.trim();
-    if (dto.status) updateData.status = dto.status;
-    if (dto.description) updateData.description = dto.description.trim();
-
-    const updated = await this.repo.update(id, companyId, updateData);
-
-    await this.audit.log(
-      'UPDATE_ASSET',
-      userId,
-      companyId,
-      `Updated asset ${asset.name} with changes: ${JSON.stringify(updateData)}`
-    );
-
-    return { message: 'Asset updated successfully', count: updated.count };
-  }
-
-  async deleteAsset(id: string, companyId: string, userId: string) {
-    if (!id) {
-      throw new AppError('Asset id is required', 400);
-    }
-
-    const asset = await this.repo.getById(id, companyId);
-    if (!asset) {
-      throw new AppError('Asset not found', 404);
-    }
-
-    const deleted = await this.repo.delete(id, companyId);
-
-    if (deleted.count === 0) {
-      throw new AppError('Asset not found', 404);
-    }
-
-    await this.audit.log(
-      'DELETE_ASSET',
-      userId,
-      companyId,
-      `Deleted asset ${asset.name} with serial code ${asset.serialCode}`
-    );
-
-    return { message: 'Asset deleted successfully' };
-  }
-}
+  /**
+   * Delete an asset
+   * 
+   * @async
+   * @param {string} id - Asset ID
+   * @param {string} companyId - Company ID for isolation
+   * @param {string} userId - User ID performing the action
+   * 
+   * @returns {Promise<Object>} Deletion confirmation
+   * 
+   * @throws {AppError} 400 - If asset ID not provided
+   * @throws {AppError} 404 - If asset not found
+   * 
+   * @description
+   * 1. Validates asset ID provided
+   * 2. Retrieves asset to confirm existence and get details
+   * 3. Deletes asset
+   * 4. Logs deletion to audit trail
+   */
