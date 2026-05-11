@@ -9,15 +9,38 @@ export class ProductService {
   async create(dto: any, companyId: string, userId: string) {
     const { name, barcode, quantity, lowStockThreshold } = dto;
 
-    const initialQuantity = Number(quantity ?? 0);
-    const threshold = Number(lowStockThreshold ?? 5);
-
     if (!name || !barcode) {
       throw new AppError('name and barcode are required', 400);
     }
 
+    const initialQuantity = Number(quantity ?? 0);
+    const threshold = Number(lowStockThreshold ?? 5);
+
     if (initialQuantity < 0) {
       throw new AppError('quantity cannot be negative', 400);
+    }
+
+    if (threshold < 0) {
+      throw new AppError('low stock threshold cannot be negative', 400);
+    }
+
+    const company = await this.repo.findCompanyById(companyId);
+
+    if (!company) {
+      throw new AppError('Company not found', 404);
+    }
+
+    if (company.subscriptionStatus !== 'ACTIVE') {
+      throw new AppError('Subscription is not active', 403);
+    }
+
+    const productCount = await this.repo.countProducts(companyId);
+
+    if (productCount >= company.maxProducts) {
+      throw new AppError(
+        `Product limit reached for ${company.plan} plan`,
+        403
+      );
     }
 
     const product = await this.repo.create({
@@ -43,9 +66,57 @@ export class ProductService {
     return product;
   }
 
-  async scanIn(barcode: string, quantity: number, companyId: string, userId: string) {
+  getAll(companyId: string, query: any) {
+    const search =
+      typeof query.search === 'string' ? query.search : undefined;
+
+    const page = query.page ? Number(query.page) : 1;
+    const limit = query.limit ? Number(query.limit) : 20;
+
+    if (page < 1) {
+      throw new AppError('Page must be greater than 0', 400);
+    }
+
+    if (limit < 1 || limit > 100) {
+      throw new AppError('Limit must be between 1 and 100', 400);
+    }
+
+    return this.repo.findAll(companyId, search, page, limit);
+  }
+
+  async getById(productId: string, companyId: string) {
+    if (!productId) {
+      throw new AppError('Product id is required', 400);
+    }
+
+    const product = await this.repo.findById(productId, companyId);
+
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
+
+    return product;
+  }
+
+  async getLowStock(companyId: string) {
+    return this.repo.findLowStock(companyId);
+  }
+
+  async scanIn(
+    barcode: string,
+    quantity: number,
+    companyId: string,
+    userId: string
+  ) {
+    if (!barcode) {
+      throw new AppError('Barcode is required', 400);
+    }
+
     const product = await this.repo.findByBarcode(barcode.trim(), companyId);
-    if (!product) throw new AppError('Product not found', 404);
+
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
 
     const amount = Number(quantity);
 
@@ -55,53 +126,31 @@ export class ProductService {
 
     const updated = await this.repo.updateInventory(product.id, amount);
 
-    await this.audit.log('SCAN_IN', userId, companyId, `${barcode} +${amount}`);
+    await this.audit.log(
+      'SCAN_IN',
+      userId,
+      companyId,
+      `${barcode} +${amount}`
+    );
 
     return updated;
   }
 
-  getAll(companyId: string, query: any) {
-  const search =
-    typeof query.search === 'string'
-      ? query.search
-      : undefined;
+  async scanOut(
+    barcode: string,
+    quantity: number,
+    companyId: string,
+    userId: string
+  ) {
+    if (!barcode) {
+      throw new AppError('Barcode is required', 400);
+    }
 
-  const page = query.page ? Number(query.page) : 1;
-  const limit = query.limit ? Number(query.limit) : 20;
-
-  if (page < 1) {
-    throw new AppError('Page must be greater than 0', 400);
-  }
-
-  if (limit < 1 || limit > 100) {
-    throw new AppError('Limit must be between 1 and 100', 400);
-  }
-
-  return this.repo.findAll(companyId, search, page, limit);
-}
-
-  async getById(productId: string, companyId: string) {
-  if (!productId) {
-    throw new AppError('Product id is required', 400);
-  }
-
-  const product = await this.repo.findById(productId, companyId);
-
-  if (!product) {
-    throw new AppError('Product not found', 404);
-  }
-
-  return product;
-}
-
-  async getLowStock(companyId: string) {
-    return this.repo.findLowStock(companyId);
-  }
-
-
-  async scanOut(barcode: string, quantity: number, companyId: string, userId: string) {
     const product = await this.repo.findByBarcode(barcode.trim(), companyId);
-    if (!product) throw new AppError('Product not found', 404);
+
+    if (!product) {
+      throw new AppError('Product not found', 404);
+    }
 
     const amount = Number(quantity);
 
@@ -117,13 +166,23 @@ export class ProductService {
 
     const updated = await this.repo.updateInventory(product.id, -amount);
 
-    await this.audit.log('SCAN_OUT', userId, companyId, `${barcode} -${amount}`);
+    await this.audit.log(
+      'SCAN_OUT',
+      userId,
+      companyId,
+      `${barcode} -${amount}`
+    );
 
     return updated;
   }
 
-  async updateProduct(productId: string, dto: any, companyId: string, userId: string) {
-    const { name, barcode, quantity } = dto;
+  async updateProduct(
+    productId: string,
+    dto: any,
+    companyId: string,
+    userId: string
+  ) {
+    const { name, barcode, quantity, lowStockThreshold } = dto;
 
     if (!productId) {
       throw new AppError('Product id is required', 400);
@@ -134,15 +193,21 @@ export class ProductService {
     }
 
     const parsedQuantity = Number(quantity);
+    const threshold = Number(lowStockThreshold ?? 5);
 
-    if (isNaN(parsedQuantity) || parsedQuantity < 0) {
+    if (Number.isNaN(parsedQuantity) || parsedQuantity < 0) {
       throw new AppError('quantity must be 0 or greater', 400);
+    }
+
+    if (Number.isNaN(threshold) || threshold < 0) {
+      throw new AppError('low stock threshold must be 0 or greater', 400);
     }
 
     const updated = await this.repo.update(productId, companyId, {
       name: name.trim(),
       barcode: barcode.trim(),
-      quantity: parsedQuantity
+      quantity: parsedQuantity,
+      lowStockThreshold: threshold
     });
 
     await this.audit.log(
@@ -173,6 +238,8 @@ export class ProductService {
       `Deleted product ${productId}`
     );
 
-    return { message: 'Product deleted successfully' };
+    return {
+      message: 'Product deleted successfully'
+    };
   }
 }

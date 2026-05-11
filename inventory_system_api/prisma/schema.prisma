@@ -132,14 +132,16 @@ model Inventory {
 }
 
 model ActivationCode {
-  id        String  @id @default(uuid())
-  code      String  @unique
-  isUsed    Boolean @default(false)
-  companyId String?
+  id          String  @id @default(uuid())
+  code        String  @unique
+  isUsed      Boolean @default(false)
+  companyId   String?
 
-  plan      String  @default("STARTER")
-  maxUsers  Int     @default(3)
-  maxProducts Int   @default(100)
+  plan        String  @default("STARTER")
+  maxUsers    Int     @default(3)
+  maxProducts Int     @default(100)
+
+  isActive    Boolean @default(true)
 }
 
 
@@ -168,4 +170,11 @@ model Asset {
   company Company @relation(fields: [companyId], references: [id])
 
   @@unique([serialCode, companyId])
+}
+
+model SuperAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
 }

@@ -77,6 +77,18 @@ export class UserRepository {
     });
   }
 
+  findCompanyById(companyId: string) {
+    return prisma.company.findUnique({
+      where: { id: companyId }
+    });
+  }
+
+  countUsers(companyId: string) {
+    return prisma.user.count({
+      where: { companyId }
+    });
+  }
+
   delete(id: string, companyId: string) {
     return prisma.user.deleteMany({
       where: {

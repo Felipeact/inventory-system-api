@@ -1,13 +1,12 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { prisma } from '../../lib/prisma';
 import jwt from 'jsonwebtoken';
-import { generateAccessToken, generateRefreshToken } from '../../utils/jwt';
+import { prisma } from '../../lib/prisma';
+import {generateAccessToken,generateRefreshToken} from '../../utils/jwt';
 import { AuthRepository } from './auth.repository';
 import { RoleService } from '../role/role.service';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
-
 
 export class AuthService {
   private repo = new AuthRepository();
@@ -26,12 +25,18 @@ export class AuthService {
 
     const activation = await this.repo.findCode(code);
 
-    if (!activation || activation.isUsed) {
-      throw new AppError('Invalid activation code', 401);
-    }
+    if (!activation || activation.isUsed || !activation.isActive) {
+  throw new AppError('Invalid activation code', 401);
+}
 
     const company = await prisma.company.create({
-      data: { name: companyName }
+      data: {
+        name: companyName,
+        plan: activation.plan,
+        subscriptionStatus: 'ACTIVE',
+        maxUsers: activation.maxUsers,
+        maxProducts: activation.maxProducts
+      }
     });
 
     const { admin } = await this.roleService.createDefaultRoles(company.id);
@@ -64,6 +69,13 @@ export class AuthService {
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     });
 
+    await this.audit.log(
+      'REGISTER_COMPANY',
+      user.id,
+      company.id,
+      `Registered company ${company.name} with ${company.plan} plan`
+    );
+
     return {
       accessToken,
       refreshToken
@@ -74,10 +86,14 @@ export class AuthService {
     const { email, password } = dto;
 
     const user = await this.repo.findUser(email);
-    if (!user) throw new AppError('Invalid credentials', 401);
+    if (!user) {
+      throw new AppError('Invalid credentials', 401);
+    }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new AppError('Invalid credentials', 401);
+    if (!valid) {
+      throw new AppError('Invalid credentials', 401);
+    }
 
     const accessToken = generateAccessToken({
       userId: user.id,
@@ -253,5 +269,4 @@ export class AuthService {
       message: 'Password reset successfully'
     };
   }
-
 }

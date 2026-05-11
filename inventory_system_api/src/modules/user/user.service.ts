@@ -14,12 +14,38 @@ export class UserService {
       throw new AppError('email, password, and roleName are required', 400);
     }
 
+    const company = await this.repo.findCompanyById(companyId);
+
+    if (!company) {
+      throw new AppError('Company not found', 404);
+    }
+
+    if (company.subscriptionStatus !== 'ACTIVE') {
+      throw new AppError('Subscription is not active', 403);
+    }
+
+    const userCount = await this.repo.countUsers(companyId);
+
+    if (userCount >= company.maxUsers) {
+      throw new AppError(
+        `User limit reached for ${company.plan} plan`,
+        403
+      );
+    }
+
     const normalizedRole = roleName.toUpperCase();
 
     const role = await this.repo.findRoleByName(normalizedRole, companyId);
     if (!role) throw new AppError('Role not found', 404);
 
     const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await this.repo.create({
+      email,
+      passwordHash,
+      companyId,
+      roleId: role.id,
+    });
 
     await this.audit.log(
       'CREATE_USER',
@@ -28,12 +54,7 @@ export class UserService {
       `Created user ${email} with role ${normalizedRole}`
     );
 
-    return this.repo.create({
-      email,
-      passwordHash,
-      companyId,
-      roleId: role.id,
-    });
+    return user;
   }
 
   async assignPermission(dto: any, companyId: string, adminUserId: string) {

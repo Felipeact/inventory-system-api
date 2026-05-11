@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env';
 
 export const generateAccessToken = (payload: {
   userId: string;
@@ -6,7 +7,7 @@ export const generateAccessToken = (payload: {
 }) => {
   return jwt.sign(
     payload,
-    process.env.JWT_SECRET!,
+    env.JWT_SECRET!,
     { expiresIn: '15m' }
   );
 };
@@ -17,7 +18,18 @@ export const generateRefreshToken = (payload: {
 }) => {
   return jwt.sign(
     payload,
-    process.env.JWT_REFRESH_SECRET!,
+    env.JWT_REFRESH_SECRET!,
     { expiresIn: '7d' }
+  );
+};
+
+export const generateSuperAdminToken = (payload: {
+  superAdminId: string;
+  email: string;
+}) => {
+  return jwt.sign(
+    payload,
+    env.JWT_SECRET!,
+    { expiresIn: '12h' }
   );
 };
