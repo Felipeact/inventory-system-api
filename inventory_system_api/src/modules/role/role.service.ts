@@ -1,15 +1,6 @@
-/**
- * @file role.service.ts
- * @description Role and permission management.
- * Handles seeding permissions and creating default roles with appropriate permission assignments.
- */
-
 import { prisma } from '../../lib/prisma';
 import { PERMISSIONS } from '../../constants/permissions';
 
-/**
- * RoleService - Role and permission management
- */
 export class RoleService {
   async seedPermissions() {
     for (const name of Object.values(PERMISSIONS)) {

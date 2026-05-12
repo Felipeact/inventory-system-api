@@ -1,62 +1,17 @@
-/**
- * @file auth.service.ts
- * @description Authentication business logic.
- * Handles user registration, login, token refresh, logout, and password reset operations.
- * Manages company creation, default role setup, and security token generation.
- */
-
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
-import { generateAccessToken, generateRefreshToken } from '../../utils/jwt';
+import {generateAccessToken,generateRefreshToken} from '../../utils/jwt';
 import { AuthRepository } from './auth.repository';
 import { RoleService } from '../role/role.service';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
-import { EmailService } from '../email/email.service';
 
-/**
- * AuthService - Authentication and authorization business logic
- * 
- * @class AuthService
- * @example
- * const service = new AuthService();
- * const { accessToken, refreshToken } = await service.login({ email, password });
- */
 export class AuthService {
-  /** Data access layer for auth operations */
   private repo = new AuthRepository();
-  /** Service for role management */
   private roleService = new RoleService();
-  /** Service for audit logging */
   private audit = new AuditService();
-  /** Service for sending emails */
-  private emailService = new EmailService();
-
-  /**
-   * Register a new company with admin user
-   * 
-   * @async
-   * @param {Object} dto - Registration data
-   * @param {string} dto.email - Admin user email
-   * @param {string} dto.password - Admin user password
-   * @param {string} dto.code - Activation code
-   * @param {string} dto.companyName - Company name
-   * 
-   * @returns {Promise<Object>} Access and refresh tokens
-   * 
-   * @throws {AppError} 400 - If required fields are missing
-   * @throws {AppError} 401 - If activation code is invalid/used/inactive
-   * 
-   * @description
-   * 1. Validates activation code
-   * 2. Creates new company with subscription plan from code
-   * 3. Sets up default ADMIN and WAREHOUSE roles
-   * 4. Creates admin user with hashed password
-   * 5. Generates access and refresh tokens
-   * 6. Sends welcome email
-   */
 
   async register(dto: any) {
     const { email, password, code, companyName } = dto;
@@ -71,8 +26,8 @@ export class AuthService {
     const activation = await this.repo.findCode(code);
 
     if (!activation || activation.isUsed || !activation.isActive) {
-      throw new AppError('Invalid activation code', 401);
-    }
+  throw new AppError('Invalid activation code', 401);
+}
 
     const company = await prisma.company.create({
       data: {
@@ -121,7 +76,48 @@ export class AuthService {
       `Registered company ${company.name} with ${company.plan} plan`
     );
 
-    await this.emailService.sendWelcomeEmail(email, companyName);
+    return {
+      accessToken,
+      refreshToken
+    };
+  }
+
+  async login(dto: any) {
+    const { email, password } = dto;
+
+    const user = await this.repo.findUser(email);
+    if (!user) {
+      throw new AppError('Invalid credentials', 401);
+    }
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) {
+      throw new AppError('Invalid credentials', 401);
+    }
+
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      companyId: user.companyId
+    });
+
+    const refreshToken = generateRefreshToken({
+      userId: user.id,
+      companyId: user.companyId
+    });
+
+    await this.repo.createRefreshToken({
+      token: refreshToken,
+      userId: user.id,
+      companyId: user.companyId,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    });
+
+    await this.audit.log(
+      'LOGIN',
+      user.id,
+      user.companyId,
+      `User ${user.email} logged in`
+    );
 
     return {
       accessToken,
@@ -129,105 +125,148 @@ export class AuthService {
     };
   }
 
-  /**
-   * Login user with email and password
-   * 
-   * @async
-   * @param {Object} dto - Login credentials
-   * @param {string} dto.email - User email
-   * @param {string} dto.password - User password
-   * 
-   * @returns {Promise<Object>} Access and refresh tokens
-   * 
-   * @throws {AppError} 401 - If user not found or password invalid
-   * 
-   * @description
-   * 1. Finds user by email
-   * 2. Validates password using bcrypt
-   * 3. Generates access and refresh tokens
-   * 4. Stores refresh token in database
-   * 5. Logs login action
-   */
+  async refresh(dto: any) {
+    const { refreshToken } = dto;
 
-  /**
-   * Refresh access token using valid refresh token
-   * 
-   * @async
-   * @param {Object} dto - Token refresh data
-   * @param {string} dto.refreshToken - Valid refresh token
-   * 
-   * @returns {Promise<Object>} New access token
-   * 
-   * @throws {AppError} 400 - If refresh token not provided
-   * @throws {AppError} 401 - If token invalid, not found, or expired
-   * 
-   * @description
-   * 1. Validates refresh token exists in database
-   * 2. Checks token hasn't expired
-   * 3. Verifies token signature
-   * 4. Generates new access token
-   * 5. Logs token refresh
-   */
+    if (!refreshToken) {
+      throw new AppError('Refresh token is required', 400);
+    }
 
-  /**
-   * Logout user by invalidating refresh token
-   * 
-   * @async
-   * @param {Object} dto - Logout data
-   * @param {string} dto.refreshToken - Refresh token to invalidate
-   * 
-   * @returns {Promise<Object>} Success message
-   * 
-   * @throws {AppError} 400 - If refresh token not provided
-   * @throws {AppError} 401 - If token not found
-   * 
-   * @description
-   * 1. Validates refresh token exists
-   * 2. Deletes token from database
-   * 3. Logs logout action
-   */
+    const storedToken = await this.repo.findRefreshToken(refreshToken);
 
-  /**
-   * Request password reset token to be sent via email
-   * 
-   * @async
-   * @param {Object} dto - Reset request data
-   * @param {string} dto.email - User email address
-   * 
-   * @returns {Promise<Object>} Generic success message (for security)
-   * 
-   * @throws {AppError} 400 - If email not provided
-   * 
-   * @description
-   * 1. Validates email provided
-   * 2. Looks up user by email (doesn't error if not found - security measure)
-   * 3. If user found: creates 30-minute expiring reset token
-   * 4. Sends reset email with token link
-   * 5. Logs password reset request
-   * 6. Returns generic message (prevents email enumeration attacks)
-   */
+    if (!storedToken) {
+      throw new AppError('Invalid refresh token', 401);
+    }
 
-  /**
-   * Reset user password using reset token
-   * 
-   * @async
-   * @param {Object} dto - Password reset data
-   * @param {string} dto.token - Password reset token from email
-   * @param {string} dto.newPassword - New password (min 6 chars)
-   * 
-   * @returns {Promise<Object>} Success message
-   * 
-   * @throws {AppError} 400 - If token or password not provided or password too short
-   * @throws {AppError} 401 - If token invalid, already used, or expired
-   * 
-   * @description
-   * 1. Validates token and password provided
-   * 2. Checks password meets minimum requirements
-   * 3. Finds reset token with associated user
-   * 4. Validates token hasn't been used and isn't expired
-   * 5. Hashes new password with bcrypt
-   * 6. Updates user password in database
-   * 7. Marks reset token as used (one-time use)
-   * 8. Logs password reset
-   **/
-} 
+    if (storedToken.expiresAt < new Date()) {
+      await this.repo.deleteRefreshToken(refreshToken);
+      throw new AppError('Refresh token expired', 401);
+    }
+
+    const payload = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET!
+    ) as {
+      userId: string;
+      companyId: string;
+    };
+
+    const accessToken = generateAccessToken({
+      userId: payload.userId,
+      companyId: payload.companyId
+    });
+
+    await this.audit.log(
+      'REFRESH_TOKEN',
+      payload.userId,
+      payload.companyId,
+      'Access token refreshed'
+    );
+
+    return {
+      accessToken
+    };
+  }
+
+  async logout(dto: any) {
+    const { refreshToken } = dto;
+
+    if (!refreshToken) {
+      throw new AppError('Refresh token is required', 400);
+    }
+
+    const storedToken = await this.repo.findRefreshToken(refreshToken);
+
+    if (!storedToken) {
+      throw new AppError('Invalid refresh token', 401);
+    }
+
+    await this.repo.deleteRefreshToken(refreshToken);
+
+    await this.audit.log(
+      'LOGOUT',
+      storedToken.userId,
+      storedToken.companyId,
+      'User logged out'
+    );
+
+    return {
+      message: 'Logged out successfully'
+    };
+  }
+
+  async requestPasswordReset(dto: any) {
+    const { email } = dto;
+
+    if (!email) {
+      throw new AppError('Email is required', 400);
+    }
+
+    const user = await this.repo.findUser(email);
+
+    if (!user) {
+      return {
+        message: 'If this email exists, a reset link will be sent'
+      };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    await this.repo.createPasswordResetToken({
+      token,
+      userId: user.id,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000)
+    });
+
+    await this.audit.log(
+      'REQUEST_PASSWORD_RESET',
+      user.id,
+      user.companyId,
+      `Password reset requested for ${email}`
+    );
+
+    return {
+      message: 'Password reset token created',
+      resetToken: token
+    };
+  }
+
+  async resetPassword(dto: any) {
+    const { token, newPassword } = dto;
+
+    if (!token || !newPassword) {
+      throw new AppError('Token and new password are required', 400);
+    }
+
+    if (newPassword.length < 6) {
+      throw new AppError('Password must be at least 6 characters', 400);
+    }
+
+    const resetToken = await this.repo.findPasswordResetToken(token);
+
+    if (!resetToken || resetToken.used) {
+      throw new AppError('Invalid reset token', 401);
+    }
+
+    if (resetToken.expiresAt < new Date()) {
+      throw new AppError('Reset token expired', 401);
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+
+    await this.repo.updateUserPassword(resetToken.userId, passwordHash);
+
+    await this.repo.markPasswordResetTokenUsed(token);
+
+    await this.audit.log(
+      'RESET_PASSWORD',
+      resetToken.userId,
+      resetToken.user.companyId,
+      'Password was reset'
+    );
+
+    return {
+      message: 'Password reset successfully'
+    };
+  }
+}
