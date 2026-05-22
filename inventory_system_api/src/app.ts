@@ -20,11 +20,14 @@ import superAdminRoutes from './modules/super-admin/super-admin.routes';
 import helmet from 'helmet';
 import { env } from './config/env';
 import exportRoutes from './modules/export/export.routes';
+import truckStockRoutes from './modules/truck-stock/truck-stock.routes';
 
 dotenv.config();
 
 /** Initialize Express application instance */
 const app = express();
+
+app.set('trust proxy', 1); // Enable if behind a proxy (e.g., for rate limiting to work correctly)
 
 /** Security middleware - sets HTTP headers to help protect the app from various attacks */
 app.use(helmet());
@@ -57,6 +60,7 @@ app.use('/users', userRoutes); // User management routes
 app.use('/reports', reportRoutes); // Report generation routes
 app.use('/exports', exportRoutes); // Data export routes
 app.use('/super-admin', superAdminRoutes); // Super admin management routes
+app.use('/truck-stock', truckStockRoutes);
 
 /** Error handling middleware - must be last middleware */
 app.use(errorMiddleware);

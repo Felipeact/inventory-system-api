@@ -13,18 +13,22 @@ datasource db {
 }
 
 model Company {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   name      String
   users     User[]
   roles     Role[]
   products  Product[]
   assets    Asset[]
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
-  plan                String @default("STARTER")
-  subscriptionStatus  String @default("ACTIVE")
-  maxUsers            Int    @default(3)
-  maxProducts         Int    @default(100)
+  plan               String @default("STARTER")
+  subscriptionStatus String @default("ACTIVE")
+  maxUsers           Int    @default(3)
+  maxProducts        Int    @default(100)
+
+  trucks              Truck[]
+  truckStockTemplates TruckStockTemplate[]
+  purchaseReceipts    PurchaseReceipt[]
 }
 
 model User {
@@ -37,9 +41,15 @@ model User {
   company Company @relation(fields: [companyId], references: [id])
   role    Role    @relation(fields: [roleId], references: [id])
 
-  refreshTokens RefreshToken[]
-  userPermissions UserPermission[]
+  refreshTokens       RefreshToken[]
+  userPermissions     UserPermission[]
   passwordResetTokens PasswordResetToken[]
+
+  trucks                  Truck[]                @relation("TruckTechnician")
+  createdTruckTemplates   TruckStockTemplate[]   @relation("TruckTemplateCreator")
+  createdTruckAssignments TruckStockAssignment[] @relation("TruckAssignmentCreator")
+  truckReceipts           PurchaseReceipt[]      @relation("TruckReceiptTechnician")
+  truckStockMovements     TruckStockMovement[]   @relation("TruckStockMovementUser")
 
   @@unique([email, companyId])
 }
@@ -110,13 +120,13 @@ model UserPermission {
 }
 
 model Product {
-  id                String   @id @default(uuid())
+  id                String @id @default(uuid())
   name              String
   barcode           String
   companyId         String
-  lowStockThreshold Int      @default(5)
+  lowStockThreshold Int    @default(5)
 
-  company   Company   @relation(fields: [companyId], references: [id])
+  company   Company    @relation(fields: [companyId], references: [id])
   inventory Inventory?
 
   @@unique([barcode, companyId])
@@ -132,20 +142,17 @@ model Inventory {
 }
 
 model ActivationCode {
-  id          String  @id @default(uuid())
-  code        String  @unique
-  isUsed      Boolean @default(false)
-  companyId   String?
+  id        String  @id @default(uuid())
+  code      String  @unique
+  isUsed    Boolean @default(false)
+  companyId String?
 
-  plan        String  @default("STARTER")
-  maxUsers    Int     @default(3)
-  maxProducts Int     @default(100)
+  plan        String @default("STARTER")
+  maxUsers    Int    @default(3)
+  maxProducts Int    @default(100)
 
-  isActive    Boolean @default(true)
+  isActive Boolean @default(true)
 }
-
-
-
 
 model AuditLog {
   id        String   @id @default(uuid())
@@ -177,4 +184,147 @@ model SuperAdmin {
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+}
+
+model Truck {
+  id          String  @id @default(cuid())
+  truckNumber String
+  plateNumber String?
+  status      String  @default("ACTIVE")
+
+  companyId    String
+  technicianId String?
+
+  company    Company @relation(fields: [companyId], references: [id])
+  technician User?   @relation("TruckTechnician", fields: [technicianId], references: [id])
+
+  stockAssignments TruckStockAssignment[]
+  receiptUploads   PurchaseReceipt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TruckStockTemplate {
+  id        String  @id @default(cuid())
+  name      String
+  tradeType String?
+
+  companyId   String
+  createdById String
+
+  company   Company @relation(fields: [companyId], references: [id])
+  createdBy User    @relation("TruckTemplateCreator", fields: [createdById], references: [id])
+
+  items       TruckStockItem[]
+  assignments TruckStockAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TruckStockItem {
+  id String @id @default(cuid())
+
+  templateId String
+
+  productName String
+  category    String?
+
+  requiredQuantity Int
+  currentQuantity  Int @default(0)
+
+  minimumQuantity Int @default(1)
+
+  expectedPrice Float?
+
+  unit String?
+
+  notes String?
+
+  template  TruckStockTemplate   @relation(fields: [templateId], references: [id])
+  movements TruckStockMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TruckStockAssignment {
+  id String @id @default(cuid())
+
+  truckId    String
+  templateId String
+
+  assignedById String
+
+  truck Truck @relation(fields: [truckId], references: [id])
+
+  template TruckStockTemplate @relation(fields: [templateId], references: [id])
+
+  assignedBy User @relation("TruckAssignmentCreator", fields: [assignedById], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model PurchaseReceipt {
+  id String @id @default(cuid())
+
+  companyId    String
+  technicianId String
+  truckId      String
+
+  fileUrl String
+
+  status String @default("PENDING")
+
+  totalAmount Float?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  technician User @relation("TruckReceiptTechnician", fields: [technicianId], references: [id])
+
+  truck Truck @relation(fields: [truckId], references: [id])
+
+  items ReceiptItem[]
+
+  createdAt DateTime @default(now())
+}
+
+model ReceiptItem {
+  id String @id @default(cuid())
+
+  receiptId String
+
+  itemName String
+
+  quantity Int
+
+  unitPrice Float?
+
+  totalPrice Float?
+
+  receipt PurchaseReceipt @relation(fields: [receiptId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model TruckStockMovement {
+  id String @id @default(cuid())
+
+  truckStockItemId String
+
+  action String
+
+  previousQuantity Int
+  newQuantity      Int
+
+  changedById String
+
+  notes String?
+
+  truckStockItem TruckStockItem @relation(fields: [truckStockItemId], references: [id])
+
+  changedBy User @relation("TruckStockMovementUser", fields: [changedById], references: [id])
+
+  createdAt DateTime @default(now())
 }

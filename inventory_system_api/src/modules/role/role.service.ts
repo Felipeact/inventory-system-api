@@ -31,17 +31,27 @@ export class RoleService {
       },
     });
 
+    const technician = await prisma.role.create({
+      data: {
+        name: 'TECHNICIAN',
+        companyId,
+      },
+    });
+
     const adminPermissions = permissions.map((permission) => ({
       roleId: admin.id,
       permissionId: permission.id,
     }));
 
     const warehousePermissions = permissions
-      .filter((permission) =>
+      .filter((permission : any) =>
         [
           PERMISSIONS.VIEW_STOCK,
           PERMISSIONS.SCAN_IN,
           PERMISSIONS.SCAN_OUT,
+          PERMISSIONS.VIEW_TRUCK_STOCK,
+          PERMISSIONS.TRANSFER_STOCK_TO_TRUCK,
+          PERMISSIONS.VIEW_LOW_STOCK_ALERTS,
         ].includes(permission.name)
       )
       .map((permission) => ({
@@ -49,11 +59,28 @@ export class RoleService {
         permissionId: permission.id,
       }));
 
+    const technicianPermissions = permissions
+      .filter((permission : any) =>
+        [
+          PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK,
+          PERMISSIONS.UPLOAD_RECEIPT,
+          PERMISSIONS.VIEW_LOW_STOCK_ALERTS,
+        ].includes(permission.name)
+      )
+      .map((permission) => ({
+        roleId: technician.id,
+        permissionId: permission.id,
+      }));
+
     await prisma.rolePermission.createMany({
-      data: [...adminPermissions, ...warehousePermissions],
+      data: [
+        ...adminPermissions,
+        ...warehousePermissions,
+        ...technicianPermissions,
+      ],
       skipDuplicates: true,
     });
 
-    return { admin, warehouse };
+    return { admin, warehouse, technician };
   }
 }

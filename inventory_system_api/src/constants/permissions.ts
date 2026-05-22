@@ -2,38 +2,33 @@
  * @file permissions.ts
  * @description Application permission constants.
  * Defines all available permissions used for role-based access control (RBAC).
- * These permissions can be assigned to roles or individual users.
  */
 
-/**
- * System permissions used for authorization
- * Each permission controls access to specific features
- */
 export const PERMISSIONS = {
-  /** Permission to create and add new products */
+  // PRODUCTS
   ADD_PRODUCT: 'ADD_PRODUCT',
-  
-  /** Permission to view stock levels and inventory information */
   VIEW_STOCK: 'VIEW_STOCK',
-  
-  /** Permission to record items being added to inventory (scan in) */
   SCAN_IN: 'SCAN_IN',
-  
-  /** Permission to record items being removed from inventory (scan out) */
   SCAN_OUT: 'SCAN_OUT',
-  
-  /** Permission to manage users and their roles */
+
+  // USERS
   MANAGE_USERS: 'MANAGE_USERS',
-  
-  /** Permission to create and register new assets */
+
+  // ASSETS
   ADD_ASSET: 'ADD_ASSET',
-  
-  /** Permission to view asset information and details */
   VIEW_ASSET: 'VIEW_ASSET',
-  
-  /** Permission to update existing asset information */
   EDIT_ASSET: 'EDIT_ASSET',
-  
-  /** Permission to delete assets from the system */
-  DELETE_ASSET: 'DELETE_ASSET'
-};
+  DELETE_ASSET: 'DELETE_ASSET',
+
+  // TRUCK STOCK
+  VIEW_ASSIGNED_TRUCK_STOCK: 'VIEW_ASSIGNED_TRUCK_STOCK',
+  UPLOAD_RECEIPT: 'UPLOAD_RECEIPT',
+  VIEW_LOW_STOCK_ALERTS: 'VIEW_LOW_STOCK_ALERTS',
+
+  MANAGE_TRUCK_STOCK: 'MANAGE_TRUCK_STOCK',
+  ASSIGN_TRUCK_STOCK: 'ASSIGN_TRUCK_STOCK',
+  APPROVE_RECEIPTS: 'APPROVE_RECEIPTS',
+  VIEW_ALL_TRUCKS: 'VIEW_ALL_TRUCKS',
+  VIEW_TRUCK_STOCK: 'VIEW_TRUCK_STOCK',
+  TRANSFER_STOCK_TO_TRUCK: 'TRANSFER_STOCK_TO_TRUCK'
+} as const;
