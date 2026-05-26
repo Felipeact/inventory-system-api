@@ -1,7 +1,9 @@
 import { prisma } from '../../lib/prisma';
 
 export class UserRepository {
+
   create(data: {
+    name: string;
     email: string;
     passwordHash: string;
     companyId: string;
@@ -9,6 +11,43 @@ export class UserRepository {
   }) {
     return prisma.user.create({
       data,
+      include: {
+        role: true,
+      },
+    });
+  }
+
+  async update(
+    id: string,
+    companyId: string,
+    data: {
+      name?: string;
+      email?: string;
+      passwordHash?: string;
+      roleId?: string;
+    }
+  ) {
+    await prisma.user.updateMany({
+      where: {
+        id,
+        companyId,
+      },
+      data,
+    });
+
+    return prisma.user.findFirst({
+      where: {
+        id,
+        companyId,
+      },
+      include: {
+        role: true,
+        userPermissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
     });
   }
 

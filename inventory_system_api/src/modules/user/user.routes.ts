@@ -40,6 +40,13 @@ router.get(
   controller.getAll
 );
 
+router.put(
+  '/:id',
+  requirePermission(PERMISSIONS.MANAGE_USERS),
+  validate(userIdSchema),
+  controller.update
+);
+
 router.delete(
   '/:id',
   requirePermission(PERMISSIONS.MANAGE_USERS),

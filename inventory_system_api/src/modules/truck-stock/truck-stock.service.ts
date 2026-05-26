@@ -6,26 +6,48 @@ export class TruckStockService {
     private repo = new TruckStockRepository();
     private audit = new AuditService();
 
-    async createTruck(dto: any, companyId: string, userId: string) {
-        const { truckNumber, plateNumber, technicianId } = dto;
+    async createTruck(dto: any, companyId: string, userId?: string) {
+        const { truckNumber, plateNumber, status } = dto;
 
-        if (!truckNumber) {
+        if (!truckNumber || String(truckNumber).trim() === '') {
             throw new AppError('truckNumber is required', 400);
         }
 
+        let technicianId =
+            dto.technicianId && String(dto.technicianId).trim() !== ''
+                ? String(dto.technicianId).trim()
+                : null;
+
+        if (technicianId) {
+            const technician = await this.repo.findTechnicianById(
+                technicianId,
+                companyId
+            );
+
+            if (!technician) {
+                throw new AppError('Technician not found in this company', 404);
+            }
+
+            const existingTruck = await this.repo.findTruckByTechnicianId(
+                technicianId,
+                companyId
+            );
+
+            if (existingTruck) {
+                throw new AppError(
+                    'This technician is already assigned to an active truck',
+                    400
+                );
+            }
+        }
+
         const truck = await this.repo.createTruck({
-            truckNumber: truckNumber.trim(),
-            plateNumber: plateNumber?.trim(),
+            truckNumber: String(truckNumber).trim(),
+            plateNumber: plateNumber ? String(plateNumber).trim() : null,
+            status: status || 'ACTIVE',
             technicianId,
             companyId,
         });
-
-        await this.audit.log(
-            'CREATE_TRUCK',
-            userId,
-            companyId,
-            `Created truck ${truck.truckNumber}`
-        );
 
         return truck;
     }
@@ -79,6 +101,66 @@ export class TruckStockService {
         return template;
     }
 
+    async updateTruck(truckId: string, dto: any, companyId: string) {
+        const { truckNumber, plateNumber, status } = dto;
+
+        const updateData: {
+            truckNumber?: string;
+            plateNumber?: string | null;
+            status?: string;
+            technicianId?: string | null;
+        } = {};
+
+        if (truckNumber !== undefined) {
+            updateData.truckNumber = String(truckNumber).trim();
+        }
+
+        if (plateNumber !== undefined) {
+            updateData.plateNumber =
+                String(plateNumber).trim() === ''
+                    ? null
+                    : String(plateNumber).trim();
+        }
+
+        if (status !== undefined) {
+            updateData.status = String(status).toUpperCase();
+        }
+
+        if (dto.technicianId !== undefined) {
+            const technicianId =
+                String(dto.technicianId).trim() === ''
+                    ? null
+                    : String(dto.technicianId).trim();
+
+            if (technicianId) {
+                const technician = await this.repo.findTechnicianById(
+                    technicianId,
+                    companyId
+                );
+
+                if (!technician) {
+                    throw new AppError('Technician not found in this company', 404);
+                }
+
+                const existingTruck = await this.repo.findTruckByTechnicianId(
+                    technicianId,
+                    companyId
+                );
+
+                if (existingTruck && existingTruck.id !== truckId) {
+                    throw new AppError(
+                        'This technician is already assigned to another active truck',
+                        400
+                    );
+                }
+            }
+
+            updateData.technicianId = technicianId;
+        }
+
+        return this.repo.updateTruck(truckId, companyId, updateData);
+    }
+
     getTemplates(companyId: string) {
         return this.repo.findTemplates(companyId);
     }
@@ -104,6 +186,10 @@ export class TruckStockService {
         );
 
         return assignment;
+    }
+
+    getAssignments(companyId: string) {
+        return this.repo.findAssignments(companyId);
     }
 
     async getMyTruckStock(companyId: string, technicianId: string) {

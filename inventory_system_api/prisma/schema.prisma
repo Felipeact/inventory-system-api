@@ -33,6 +33,7 @@ model Company {
 
 model User {
   id           String @id @default(uuid())
+  name         String @default("")
   email        String
   passwordHash String
   companyId    String

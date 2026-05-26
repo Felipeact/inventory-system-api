@@ -3,12 +3,19 @@ import { prisma } from '../../lib/prisma';
 export class TruckStockRepository {
     createTruck(data: {
         truckNumber: string;
-        plateNumber?: string;
-        technicianId?: string;
+        plateNumber?: string | null;
+        status?: string;
+        technicianId?: string | null;
         companyId: string;
     }) {
         return prisma.truck.create({
-            data,
+            data: {
+                truckNumber: data.truckNumber,
+                plateNumber: data.plateNumber,
+                status: data.status || 'ACTIVE',
+                technicianId: data.technicianId,
+                companyId: data.companyId,
+            },
         });
     }
 
@@ -19,12 +26,58 @@ export class TruckStockRepository {
                 technician: {
                     select: {
                         id: true,
+                        name: true,
                         email: true,
                     },
                 },
             },
             orderBy: {
                 createdAt: 'desc',
+            },
+        });
+    }
+
+    findTruckByTechnicianId(technicianId: string, companyId: string) {
+        return prisma.truck.findFirst({
+            where: {
+                technicianId,
+                companyId,
+                status: 'ACTIVE',
+            },
+        });
+    }
+
+    async updateTruck(
+        truckId: string,
+        companyId: string,
+        data: {
+            truckNumber?: string;
+            plateNumber?: string | null;
+            status?: string;
+            technicianId?: string | null;
+        }
+    ) {
+        await prisma.truck.updateMany({
+            where: {
+                id: truckId,
+                companyId,
+            },
+            data,
+        });
+
+        return prisma.truck.findFirst({
+            where: {
+                id: truckId,
+                companyId,
+            },
+            include: {
+                technician: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
             },
         });
     }
@@ -82,6 +135,30 @@ export class TruckStockRepository {
                     }
                 }
             }
+        });
+    }
+
+    findAssignments(companyId: string) {
+        return prisma.truckStockAssignment.findMany({
+            where: {
+                truck: {
+                    companyId,
+                },
+            },
+            include: {
+                truck: true,
+                template: true,
+                assignedBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
         });
     }
 
@@ -312,5 +389,17 @@ export class TruckStockRepository {
         });
     }
 
-    
+    findTechnicianById(userId: string, companyId: string) {
+        return prisma.user.findFirst({
+            where: {
+                id: userId,
+                companyId,
+                role: {
+                    name: 'TECHNICIAN',
+                },
+            },
+        });
+    }
+
+
 }

@@ -3,6 +3,7 @@ import { BaseController } from '../../core/base.controller';
 import { asyncHandler } from '../../core/async-handler';
 import { AuthRequest } from '../../middleware/auth.middleware';
 import { TruckStockService } from './truck-stock.service';
+import { AppError } from '../../core/app-error';
 
 export class TruckStockController extends BaseController {
     private service = new TruckStockService();
@@ -19,6 +20,22 @@ export class TruckStockController extends BaseController {
 
     getTrucks = asyncHandler(async (req: AuthRequest, res: Response) => {
         const data = await this.service.getTrucks(req.user!.companyId);
+
+        return this.ok(res, data);
+    });
+
+    updateTruck = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const id = req.params.id;
+
+        if (!id || typeof id !== 'string') {
+            throw new AppError('Truck id is required', 400);
+        }
+
+        const data = await this.service.updateTruck(
+            id,
+            req.body,
+            req.user!.companyId
+        );
 
         return this.ok(res, data);
     });
@@ -47,6 +64,11 @@ export class TruckStockController extends BaseController {
         );
 
         return this.created(res, data);
+    });
+
+    getAssignments = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.getAssignments(req.user!.companyId);
+        return this.ok(res, data);
     });
 
     getMyTruckStock = asyncHandler(async (req: AuthRequest, res: Response) => {

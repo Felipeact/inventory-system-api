@@ -4,14 +4,24 @@ import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 
 export class UserService {
+
   private repo = new UserRepository();
   private audit = new AuditService();
 
-  async createUser(dto: any, companyId: string, adminUserId: string) {
-    const { email, password, roleName } = dto;
+  async createUser(
+    dto: any,
+    companyId: string,
+    adminUserId: string
+  ) {
+
+    const { name, email, password } = dto;
+    const roleName = dto.roleName || dto.role;
 
     if (!email || !password || !roleName) {
-      throw new AppError('email, password, and roleName are required', 400);
+      throw new AppError(
+        'email, password, and role are required',
+        400
+      );
     }
 
     const company = await this.repo.findCompanyById(companyId);
@@ -21,7 +31,10 @@ export class UserService {
     }
 
     if (company.subscriptionStatus !== 'ACTIVE') {
-      throw new AppError('Subscription is not active', 403);
+      throw new AppError(
+        'Subscription is not active',
+        403
+      );
     }
 
     const userCount = await this.repo.countUsers(companyId);
@@ -33,15 +46,25 @@ export class UserService {
       );
     }
 
-    const normalizedRole = roleName.toUpperCase();
+    const normalizedRole =
+      String(roleName).toUpperCase();
 
-    const role = await this.repo.findRoleByName(normalizedRole, companyId);
-    if (!role) throw new AppError('Role not found', 404);
+    const role =
+      await this.repo.findRoleByName(
+        normalizedRole,
+        companyId
+      );
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    if (!role) {
+      throw new AppError('Role not found', 404);
+    }
+
+    const passwordHash =
+      await bcrypt.hash(password, 10);
 
     const user = await this.repo.create({
-      email,
+      name: name ? String(name).trim() : '',
+      email: String(email).trim(),
       passwordHash,
       companyId,
       roleId: role.id,
@@ -57,30 +80,138 @@ export class UserService {
     return user;
   }
 
-  async assignPermission(dto: any, companyId: string, adminUserId: string) {
+  async updateUser(
+    userId: string,
+    dto: any,
+    companyId: string,
+    adminUserId: string
+  ) {
+
+    const { name, email, password } = dto;
+    const roleName = dto.roleName || dto.role;
+
+    const existingUser =
+      await this.repo.findUserInCompany(
+        userId,
+        companyId
+      );
+
+    if (!existingUser) {
+      throw new AppError(
+        'User not found in this company',
+        404
+      );
+    }
+
+    const updateData: {
+      name?: string;
+      email?: string;
+      passwordHash?: string;
+      roleId?: string;
+    } = {};
+
+    if (name !== undefined) {
+      updateData.name =
+        String(name).trim();
+    }
+
+    if (email !== undefined) {
+      updateData.email =
+        String(email).trim();
+    }
+
+    if (
+      password !== undefined &&
+      String(password).trim() !== ''
+    ) {
+      updateData.passwordHash =
+        await bcrypt.hash(password, 10);
+    }
+
+    if (roleName !== undefined) {
+
+      const normalizedRole =
+        String(roleName).toUpperCase();
+
+      const role =
+        await this.repo.findRoleByName(
+          normalizedRole,
+          companyId
+        );
+
+      if (!role) {
+        throw new AppError(
+          'Role not found',
+          404
+        );
+      }
+
+      updateData.roleId = role.id;
+    }
+
+    const user = await this.repo.update(
+      userId,
+      companyId,
+      updateData
+    );
+
+    await this.audit.log(
+      'UPDATE_USER',
+      adminUserId,
+      companyId,
+      `Updated user ${userId}`
+    );
+
+    return user;
+  }
+
+  async assignPermission(
+    dto: any,
+    companyId: string,
+    adminUserId: string
+  ) {
+
     const { userId, permissionName } = dto;
 
     if (!userId || !permissionName) {
-      throw new AppError('userId and permissionName are required', 400);
+      throw new AppError(
+        'userId and permissionName are required',
+        400
+      );
     }
 
-    if (typeof userId !== 'string') {
-      throw new AppError('userId must be a string', 400);
+    const user =
+      await this.repo.findUserInCompany(
+        userId,
+        companyId
+      );
+
+    if (!user) {
+      throw new AppError(
+        'User not found in this company',
+        404
+      );
     }
 
-    if (typeof permissionName !== 'string') {
-      throw new AppError('permissionName must be a string', 400);
+    const normalizedPermission =
+      String(permissionName).toUpperCase();
+
+    const permission =
+      await this.repo.findPermissionByName(
+        normalizedPermission
+      );
+
+    if (!permission) {
+      throw new AppError(
+        'Permission not found',
+        404
+      );
     }
 
-    const user = await this.repo.findUserInCompany(userId, companyId);
-    if (!user) throw new AppError('User not found in this company', 404);
-
-    const normalizedPermission = permissionName.toUpperCase();
-
-    const permission = await this.repo.findPermissionByName(normalizedPermission);
-    if (!permission) throw new AppError('Permission not found', 404);
-
-    await this.repo.assignPermission(userId, permission.id);
+    await this.repo.assignPermission(
+      userId,
+      permission.id
+    );
 
     await this.audit.log(
       'ASSIGN_PERMISSION',
@@ -96,30 +227,53 @@ export class UserService {
     };
   }
 
-  async removePermission(dto: any, companyId: string, adminUserId: string) {
+  async removePermission(
+    dto: any,
+    companyId: string,
+    adminUserId: string
+  ) {
+
     const { userId, permissionName } = dto;
 
     if (!userId || !permissionName) {
-      throw new AppError('userId and permissionName are required', 400);
+      throw new AppError(
+        'userId and permissionName are required',
+        400
+      );
     }
 
-    if (typeof userId !== 'string') {
-      throw new AppError('userId must be a string', 400);
+    const user =
+      await this.repo.findUserInCompany(
+        userId,
+        companyId
+      );
+
+    if (!user) {
+      throw new AppError(
+        'User not found in this company',
+        404
+      );
     }
 
-    if (typeof permissionName !== 'string') {
-      throw new AppError('permissionName must be a string', 400);
+    const normalizedPermission =
+      String(permissionName).toUpperCase();
+
+    const permission =
+      await this.repo.findPermissionByName(
+        normalizedPermission
+      );
+
+    if (!permission) {
+      throw new AppError(
+        'Permission not found',
+        404
+      );
     }
 
-    const user = await this.repo.findUserInCompany(userId, companyId);
-    if (!user) throw new AppError('User not found in this company', 404);
-
-    const normalizedPermission = permissionName.toUpperCase();
-
-    const permission = await this.repo.findPermissionByName(normalizedPermission);
-    if (!permission) throw new AppError('Permission not found', 404);
-
-    await this.repo.removePermission(userId, permission.id);
+    await this.repo.removePermission(
+      userId,
+      permission.id
+    );
 
     await this.audit.log(
       'REMOVE_PERMISSION',
@@ -139,7 +293,11 @@ export class UserService {
     return this.repo.findAll(companyId);
   }
 
-  async deleteUser(userId: string, companyId: string, adminUserId: string) {
+  async deleteUser(
+    userId: string,
+    companyId: string,
+    adminUserId: string
+  ) {
 
     await this.audit.log(
       'DELETE_USER',
@@ -148,7 +306,9 @@ export class UserService {
       `Deleted user ${userId}`
     );
 
-
-    return this.repo.delete(userId, companyId);
+    return this.repo.delete(
+      userId,
+      companyId
+    );
   }
 }

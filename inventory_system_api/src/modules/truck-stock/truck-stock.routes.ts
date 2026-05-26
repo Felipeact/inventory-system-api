@@ -24,6 +24,12 @@ router.get(
     controller.getTrucks
 );
 
+router.put(
+    '/trucks/:id',
+    requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+    controller.updateTruck
+);
+
 router.post(
     '/templates',
     authMiddleware,
@@ -46,6 +52,12 @@ router.post(
     subscriptionMiddleware,
     requirePermission(PERMISSIONS.ASSIGN_TRUCK_STOCK),
     controller.assignTemplate
+);
+
+router.get(
+    '/assignments',
+    requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+    controller.getAssignments
 );
 
 router.get(
