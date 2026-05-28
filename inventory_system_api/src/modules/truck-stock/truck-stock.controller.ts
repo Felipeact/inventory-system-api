@@ -56,6 +56,54 @@ export class TruckStockController extends BaseController {
         return this.ok(res, data);
     });
 
+    getTemplateById = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const id = req.params.id;
+
+        if (!id || typeof id !== 'string') {
+            throw new AppError('Template id is required', 400);
+        }
+
+        const data = await this.service.getTemplateById(
+            id,
+            req.user!.companyId
+        );
+
+        return this.ok(res, data);
+    });
+
+    updateTemplate = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const id = req.params.id;
+
+        if (!id || typeof id !== 'string') {
+            throw new AppError('Template id is required', 400);
+        }
+
+        const data = await this.service.updateTemplate(
+            id,
+            req.body,
+            req.user!.companyId
+        );
+
+        return this.ok(res, data);
+    });
+
+    deleteTemplate = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const id = req.params.id;
+
+        if (!id || typeof id !== 'string') {
+            throw new AppError('Template id is required', 400);
+        }
+
+        await this.service.deleteTemplate(
+            id,
+            req.user!.companyId
+        );
+
+        return this.ok(res, {
+            message: 'Template deleted'
+        });
+    });
+
     assignTemplate = asyncHandler(async (req: AuthRequest, res: Response) => {
         const data = await this.service.assignTemplate(
             req.body,

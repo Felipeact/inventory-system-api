@@ -165,6 +165,69 @@ export class TruckStockService {
         return this.repo.findTemplates(companyId);
     }
 
+    getTemplateById(templateId: string, companyId: string) {
+        return this.repo.findTemplateById(templateId, companyId);
+    }
+
+    async updateTemplate(templateId: string, dto: any, companyId: string) {
+        const { name, tradeType, items } = dto;
+
+        const existingTemplate = await this.repo.findTemplateById(
+            templateId,
+            companyId
+        );
+
+        if (!existingTemplate) {
+            throw new AppError('Template not found', 404);
+        }
+
+        const updatedTemplate = await this.repo.updateTemplate(
+            templateId,
+            companyId,
+            {
+                name: name !== undefined ? String(name).trim() : undefined,
+                tradeType: tradeType !== undefined ? String(tradeType).trim() : undefined,
+            }
+        );
+
+        if (Array.isArray(items)) {
+            if (items.length === 0) {
+                throw new AppError('Template must have at least one item', 400);
+            }
+
+            await this.repo.replaceTemplateItems(
+                templateId,
+                items.map((item: any) => ({
+                    productName: String(item.productName).trim(),
+                    category: item.category ? String(item.category).trim() : undefined,
+                    requiredQuantity: Number(item.requiredQuantity),
+                    minimumQuantity: Number(item.minimumQuantity ?? 1),
+                    expectedPrice:
+                        item.expectedPrice !== undefined && item.expectedPrice !== null
+                            ? Number(item.expectedPrice)
+                            : undefined,
+                    unit: item.unit ? String(item.unit).trim() : undefined,
+                    notes: item.notes ? String(item.notes).trim() : undefined,
+                }))
+            );
+        }
+
+        return this.repo.findTemplateById(templateId, companyId);
+    }
+
+    async deleteTemplate(templateId: string, companyId: string) {
+        const existingTemplate = await this.repo.findTemplateById(
+            templateId,
+            companyId
+        );
+
+        if (!existingTemplate) {
+            throw new AppError('Template not found', 404);
+        }
+
+        return this.repo.deleteTemplate(templateId, companyId);
+    }
+
     async assignTemplate(dto: any, companyId: string, userId: string) {
         const { truckId, templateId } = dto;
 

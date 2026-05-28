@@ -8,144 +8,133 @@ import { PERMISSIONS } from '../../constants/permissions';
 const router = Router();
 const controller = new TruckStockController();
 
+router.use(authMiddleware);
+router.use(subscriptionMiddleware);
+
 router.post(
-    '/trucks',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
-    controller.createTruck
+  '/trucks',
+  requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+  controller.createTruck
 );
 
 router.get(
-    '/trucks',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.VIEW_ALL_TRUCKS),
-    controller.getTrucks
+  '/trucks',
+  requirePermission(PERMISSIONS.VIEW_ALL_TRUCKS),
+  controller.getTrucks
 );
 
 router.put(
-    '/trucks/:id',
-    requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
-    controller.updateTruck
+  '/trucks/:id',
+  requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+  controller.updateTruck
 );
 
 router.post(
-    '/templates',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
-    controller.createTemplate
+  '/templates',
+  requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+  controller.createTemplate
 );
 
 router.get(
-    '/templates',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.VIEW_TRUCK_STOCK),
-    controller.getTemplates
+  '/templates',
+  requirePermission(PERMISSIONS.VIEW_TRUCK_STOCK),
+  controller.getTemplates
+);
+
+router.get(
+  '/templates/:id',
+  requirePermission(PERMISSIONS.VIEW_TRUCK_STOCK),
+  controller.getTemplateById
+);
+
+router.put(
+  '/templates/:id',
+  requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+  controller.updateTemplate
+);
+
+router.delete(
+  '/templates/:id',
+  requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+  controller.deleteTemplate
 );
 
 router.post(
-    '/assignments',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.ASSIGN_TRUCK_STOCK),
-    controller.assignTemplate
+  '/assignments',
+  requirePermission(PERMISSIONS.ASSIGN_TRUCK_STOCK),
+  controller.assignTemplate
 );
 
 router.get(
-    '/assignments',
-    requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
-    controller.getAssignments
+  '/assignments',
+  requirePermission(PERMISSIONS.MANAGE_TRUCK_STOCK),
+  controller.getAssignments
 );
 
 router.get(
-    '/my-stock',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK),
-    controller.getMyTruckStock
+  '/my-stock',
+  requirePermission(PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK),
+  controller.getMyTruckStock
 );
 
 router.get(
-    '/low-stock',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.VIEW_LOW_STOCK_ALERTS),
-    controller.getLowStockItems
+  '/low-stock',
+  requirePermission(PERMISSIONS.VIEW_LOW_STOCK_ALERTS),
+  controller.getLowStockItems
 );
 
 router.patch(
-    '/items/:itemId/quantity',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.TRANSFER_STOCK_TO_TRUCK),
-    controller.updateItemQuantity
+  '/items/:itemId/quantity',
+  requirePermission(PERMISSIONS.TRANSFER_STOCK_TO_TRUCK),
+  controller.updateItemQuantity
 );
 
 router.get(
-    '/movements',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.VIEW_TRUCK_STOCK),
-    controller.getMovements
+  '/movements',
+  requirePermission(PERMISSIONS.VIEW_TRUCK_STOCK),
+  controller.getMovements
 );
 
 router.post(
-    '/transfer-to-truck',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.TRANSFER_STOCK_TO_TRUCK),
-    controller.transferToTruck
+  '/transfer-to-truck',
+  requirePermission(PERMISSIONS.TRANSFER_STOCK_TO_TRUCK),
+  controller.transferToTruck
 );
 
 router.post(
-    '/use-item',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK),
-    controller.useTruckItem
+  '/use-item',
+  requirePermission(PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK),
+  controller.useTruckItem
 );
 
 router.post(
-    '/receipts',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
-    controller.createReceipt
+  '/receipts',
+  requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
+  controller.createReceipt
 );
 
 router.get(
-    '/receipts',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
-    controller.getReceipts
+  '/receipts',
+  requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
+  controller.getReceipts
 );
 
 router.post(
-    '/receipts/:receiptId/items',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
-    controller.addReceiptItem
+  '/receipts/:receiptId/items',
+  requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
+  controller.addReceiptItem
 );
 
 router.post(
-    '/receipts/:receiptId/reconcile',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
-    controller.reconcileReceipt
+  '/receipts/:receiptId/reconcile',
+  requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
+  controller.reconcileReceipt
 );
 
 router.patch(
-    '/receipts/:receiptId/status',
-    authMiddleware,
-    subscriptionMiddleware,
-    requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
-    controller.updateReceiptStatus
+  '/receipts/:receiptId/status',
+  requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
+  controller.updateReceiptStatus
 );
 
 export default router;

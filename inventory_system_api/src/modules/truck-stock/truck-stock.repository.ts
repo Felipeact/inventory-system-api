@@ -120,6 +120,112 @@ export class TruckStockRepository {
         });
     }
 
+    findTemplateById(templateId: string, companyId: string) {
+        return prisma.truckStockTemplate.findFirst({
+            where: {
+                id: templateId,
+                companyId,
+            },
+            include: {
+                items: true,
+            },
+        });
+    }
+
+    async updateTemplate(
+        templateId: string,
+        companyId: string,
+        data: {
+            name?: string;
+            tradeType?: string | null;
+        }
+    ) {
+        await prisma.truckStockTemplate.updateMany({
+            where: {
+                id: templateId,
+                companyId,
+            },
+            data,
+        });
+
+        return this.findTemplateById(templateId, companyId);
+    }
+
+    async replaceTemplateItems(
+        templateId: string,
+        items: Array<{
+            productName: string;
+            category?: string;
+            requiredQuantity: number;
+            minimumQuantity: number;
+            expectedPrice?: number;
+            unit?: string;
+            notes?: string;
+        }>
+    ) {
+        return prisma.$transaction(async (tx) => {
+            await tx.truckStockItem.deleteMany({
+                where: {
+                    templateId,
+                },
+            });
+
+            for (const item of items) {
+                await tx.truckStockItem.create({
+                    data: {
+                        templateId,
+                        productName: item.productName,
+                        category: item.category,
+                        requiredQuantity: item.requiredQuantity,
+                        minimumQuantity: item.minimumQuantity,
+                        expectedPrice: item.expectedPrice,
+                        unit: item.unit,
+                        notes: item.notes,
+                    },
+                });
+            }
+
+            return tx.truckStockItem.findMany({
+                where: {
+                    templateId,
+                },
+            });
+        });
+    }
+
+    async deleteTemplate(templateId: string, companyId: string) {
+        return prisma.$transaction(async (tx) => {
+            const template = await tx.truckStockTemplate.findFirst({
+                where: {
+                    id: templateId,
+                    companyId,
+                },
+            });
+
+            if (!template) {
+                return null;
+            }
+
+            await tx.truckStockAssignment.deleteMany({
+                where: {
+                    templateId,
+                },
+            });
+
+            await tx.truckStockItem.deleteMany({
+                where: {
+                    templateId,
+                },
+            });
+
+            return tx.truckStockTemplate.delete({
+                where: {
+                    id: templateId,
+                },
+            });
+        });
+    }
+
     createAssignment(data: {
         truckId: string;
         templateId: string;
@@ -395,7 +501,9 @@ export class TruckStockRepository {
                 id: userId,
                 companyId,
                 role: {
-                    name: 'TECHNICIAN',
+                    name: {
+                        in: ['TECHNICIAN', 'ADMIN'],
+                    },
                 },
             },
         });
