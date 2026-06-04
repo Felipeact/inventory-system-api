@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
-import {generateAccessToken,generateRefreshToken} from '../../utils/jwt';
+import { generateAccessToken, generateRefreshToken } from '../../utils/jwt';
 import { AuthRepository } from './auth.repository';
 import { RoleService } from '../role/role.service';
 import { AppError } from '../../core/app-error';
@@ -26,8 +26,8 @@ export class AuthService {
     const activation = await this.repo.findCode(code);
 
     if (!activation || activation.isUsed || !activation.isActive) {
-  throw new AppError('Invalid activation code', 401);
-}
+      throw new AppError('Invalid activation code', 401);
+    }
 
     const company = await prisma.company.create({
       data: {
@@ -78,7 +78,13 @@ export class AuthService {
 
     return {
       accessToken,
-      refreshToken
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: admin.name
+      }
     };
   }
 
@@ -121,7 +127,13 @@ export class AuthService {
 
     return {
       accessToken,
-      refreshToken
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role.name
+      }
     };
   }
 
