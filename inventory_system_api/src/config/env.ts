@@ -49,7 +49,10 @@ const envSchema = z.object({
   SMTP_FROM: z.string().min(1, 'SMTP_FROM is required'),
   
   /** Frontend application URL for creating links in emails */
-  FRONTEND_URL: z.string().min(1, 'FRONTEND_URL is required')
+  FRONTEND_URL: z.string().min(1, 'FRONTEND_URL is required'),
+
+  /** Application version for update endpoints */
+  APP_VERSION: z.string().default('1.0.0')
 });
 
 /** Validate environment variables against schema */

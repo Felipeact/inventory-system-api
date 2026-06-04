@@ -52,6 +52,15 @@ app.get('/', (req, res) => {
   res.send('Inventory System API'); 
 });
 
+app.get('/updates/latest', (req, res) => {
+  res.json({
+    version: env.APP_VERSION,
+    url: env.FRONTEND_URL,
+    releaseDate: new Date().toISOString(),
+    message: 'Latest update metadata'
+  });
+});
+
 /** Route definitions for all API endpoints */
 app.use('/auth', authRoutes); // Authentication routes (register, login, refresh, reset password)
 app.use('/products', productRoutes); // Product management routes

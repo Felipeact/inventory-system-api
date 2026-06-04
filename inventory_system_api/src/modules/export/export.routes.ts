@@ -33,6 +33,54 @@ router.get(
 );
 
 router.get(
+  '/products/xlsx',
+  authMiddleware,
+  subscriptionMiddleware,
+  requirePermission(PERMISSIONS.VIEW_STOCK),
+  controller.productsXlsx
+);
+
+router.get(
+  '/assets/xlsx',
+  authMiddleware,
+  subscriptionMiddleware,
+  requirePermission(PERMISSIONS.VIEW_STOCK),
+  controller.assetsXlsx
+);
+
+router.get(
+  '/users/xlsx',
+  authMiddleware,
+  subscriptionMiddleware,
+  requirePermission(PERMISSIONS.MANAGE_USERS),
+  controller.usersXlsx
+);
+
+router.get(
+  '/products/pdf',
+  authMiddleware,
+  subscriptionMiddleware,
+  requirePermission(PERMISSIONS.VIEW_STOCK),
+  controller.productsPdf
+);
+
+router.get(
+  '/assets/pdf',
+  authMiddleware,
+  subscriptionMiddleware,
+  requirePermission(PERMISSIONS.VIEW_STOCK),
+  controller.assetsPdf
+);
+
+router.get(
+  '/users/pdf',
+  authMiddleware,
+  subscriptionMiddleware,
+  requirePermission(PERMISSIONS.MANAGE_USERS),
+  controller.usersPdf
+);
+
+router.get(
   '/company/json',
   authMiddleware,
   subscriptionMiddleware,

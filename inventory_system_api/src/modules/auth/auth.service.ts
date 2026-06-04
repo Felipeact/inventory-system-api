@@ -7,11 +7,13 @@ import { AuthRepository } from './auth.repository';
 import { RoleService } from '../role/role.service';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
+import { EmailService } from '../email/email.service';
 
 export class AuthService {
   private repo = new AuthRepository();
   private roleService = new RoleService();
   private audit = new AuditService();
+  private emailService = new EmailService();
 
   async register(dto: any) {
     const { email, password, code, companyName } = dto;
@@ -230,6 +232,8 @@ export class AuthService {
       expiresAt: new Date(Date.now() + 30 * 60 * 1000)
     });
 
+    await this.emailService.sendPasswordResetEmail(email, token);
+
     await this.audit.log(
       'REQUEST_PASSWORD_RESET',
       user.id,
@@ -238,8 +242,7 @@ export class AuthService {
     );
 
     return {
-      message: 'Password reset token created',
-      resetToken: token
+      message: 'If this email exists, a reset link will be sent'
     };
   }
 
