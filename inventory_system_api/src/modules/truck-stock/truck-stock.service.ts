@@ -235,6 +235,19 @@ export class TruckStockService {
             throw new AppError('truckId and templateId are required', 400);
         }
 
+        const existingAssignment =
+            await this.repo.findAssignmentByTruckAndTemplate(
+                String(truckId),
+                String(templateId)
+            );
+
+        if (existingAssignment) {
+            throw new AppError(
+                'This truck already has this template assigned',
+                409
+            );
+        }
+
         const assignment = await this.repo.createAssignment({
             truckId,
             templateId,
@@ -253,6 +266,90 @@ export class TruckStockService {
 
     getAssignments(companyId: string) {
         return this.repo.findAssignments(companyId);
+    }
+
+    async updateAssignment(
+        assignmentId: string,
+        dto: any,
+        companyId: string,
+        userId: string
+    ) {
+        const { truckId, templateId } = dto;
+
+        if (!assignmentId) {
+            throw new AppError('assignmentId is required', 400);
+        }
+
+        if (!truckId || !templateId) {
+            throw new AppError('truckId and templateId are required', 400);
+        }
+
+        const existingAssignment =
+            await this.repo.findAssignmentByTruckAndTemplate(
+                String(truckId),
+                String(templateId)
+            );
+
+        if (existingAssignment && existingAssignment.id !== assignmentId) {
+            throw new AppError(
+                'This truck already has this template assigned',
+                409
+            );
+        }
+
+        const updated =
+            await this.repo.updateAssignment(
+                assignmentId,
+                companyId,
+                {
+                    truckId: String(truckId),
+                    templateId: String(templateId),
+                }
+            );
+
+        if (!updated) {
+            throw new AppError('Assignment not found', 404);
+        }
+
+        await this.audit.log(
+            'UPDATE_TRUCK_STOCK_ASSIGNMENT',
+            userId,
+            companyId,
+            `Updated assignment ${assignmentId}`
+        );
+
+        return updated;
+    }
+
+    async deleteAssignment(
+        assignmentId: string,
+        companyId: string,
+        userId: string
+    ) {
+        if (!assignmentId) {
+            throw new AppError('assignmentId is required', 400);
+        }
+
+        const deleted =
+            await this.repo.deleteAssignment(
+                assignmentId,
+                companyId
+            );
+
+        if (!deleted) {
+            throw new AppError('Assignment not found', 404);
+        }
+
+        await this.audit.log(
+            'DELETE_TRUCK_STOCK_ASSIGNMENT',
+            userId,
+            companyId,
+            `Deleted assignment ${assignmentId}`
+        );
+
+        return {
+            message: 'Assignment deleted'
+        };
     }
 
     async getMyTruckStock(companyId: string, technicianId: string) {

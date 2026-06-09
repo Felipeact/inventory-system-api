@@ -1,12 +1,14 @@
 import { prisma } from '../../lib/prisma';
 
 export class ProductRepository {
+  private productInclude = {
+    inventory: true
+  };
+
   async create(data: any) {
     return prisma.product.create({
       data,
-      include: {
-        inventory: true
-      }
+      include: this.productInclude
     });
   }
 
@@ -24,27 +26,22 @@ export class ProductRepository {
 
     if (search) {
       where.OR = [
-        {
-          name: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        },
-        {
-          barcode: {
-            contains: search,
-            mode: 'insensitive'
-          }
-        }
+        { name: { contains: search, mode: 'insensitive' } },
+        { barcode: { contains: search, mode: 'insensitive' } },
+        { model: { contains: search, mode: 'insensitive' } },
+        { type: { contains: search, mode: 'insensitive' } },
+        { location: { contains: search, mode: 'insensitive' } },
+        { project: { contains: search, mode: 'insensitive' } },
+        { account: { contains: search, mode: 'insensitive' } },
+        { status: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } }
       ];
     }
 
     const [data, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: {
-          inventory: true
-        },
+        include: this.productInclude,
         skip,
         take: limit,
         orderBy: {
@@ -74,9 +71,7 @@ export class ProductRepository {
         id: productId,
         companyId
       },
-      include: {
-        inventory: true
-      }
+      include: this.productInclude
     });
   }
 
@@ -86,9 +81,7 @@ export class ProductRepository {
         barcode,
         companyId
       },
-      include: {
-        inventory: true
-      }
+      include: this.productInclude
     });
   }
 
@@ -118,9 +111,7 @@ export class ProductRepository {
       where: {
         companyId
       },
-      include: {
-        inventory: true
-      }
+      include: this.productInclude
     });
 
     return products.filter((product) => {
@@ -140,6 +131,14 @@ export class ProductRepository {
       barcode: string;
       quantity: number;
       lowStockThreshold: number;
+      model?: string | null;
+      type?: string | null;
+      location?: string | null;
+      project?: string | null;
+      account?: string | null;
+      status?: string | null;
+      description?: string | null;
+      imageUrl?: string | null;
     }
   ) {
     return prisma.$transaction(async (tx) => {
@@ -151,7 +150,15 @@ export class ProductRepository {
         data: {
           name: data.name,
           barcode: data.barcode,
-          lowStockThreshold: data.lowStockThreshold
+          lowStockThreshold: data.lowStockThreshold,
+          model: data.model,
+          type: data.type,
+          location: data.location,
+          project: data.project,
+          account: data.account,
+          status: data.status,
+          description: data.description,
+          imageUrl: data.imageUrl
         }
       });
 

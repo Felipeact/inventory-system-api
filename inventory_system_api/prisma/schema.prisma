@@ -122,11 +122,20 @@ model UserPermission {
 }
 
 model Product {
-  id                String @id @default(uuid())
+  id                String  @id @default(uuid())
   name              String
   barcode           String
   companyId         String
-  lowStockThreshold Int    @default(5)
+  lowStockThreshold Int     @default(5)
+
+  model       String?
+  type        String?
+  location    String?
+  project     String?
+  account     String?
+  status      String? @default("Active")
+  description String?
+  imageUrl    String?
 
   company   Company    @relation(fields: [companyId], references: [id])
   inventory Inventory?
@@ -266,6 +275,8 @@ model TruckStockAssignment {
   assignedBy User @relation("TruckAssignmentCreator", fields: [assignedById], references: [id])
 
   createdAt DateTime @default(now())
+
+  @@unique([truckId, templateId])
 }
 
 model PurchaseReceipt {

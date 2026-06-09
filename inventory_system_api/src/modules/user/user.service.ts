@@ -2,11 +2,13 @@ import bcrypt from 'bcrypt';
 import { UserRepository } from './user.repository';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
+import { EmailService } from '../email/email.service';
 
 export class UserService {
 
   private repo = new UserRepository();
   private audit = new AuditService();
+  private email = new EmailService();
 
   async createUser(
     dto: any,
@@ -373,9 +375,28 @@ export class UserService {
         adminUserId
       );
 
+    let emailSent = false;
+
+    try {
+      await this.email.sendUserInviteEmail(
+        String(dto.email).trim(),
+        dto.name ? String(dto.name).trim() : '',
+        temporaryPassword
+      );
+
+      emailSent = true;
+    }
+    catch (error) {
+      console.error(
+        'Failed to send invite email:',
+        error
+      );
+    }
+
     return {
       user,
-      temporaryPassword,
+      emailSent,
+      temporaryPassword: emailSent ? undefined : temporaryPassword,
     };
   }
 

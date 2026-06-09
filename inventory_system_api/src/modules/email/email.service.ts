@@ -38,6 +38,30 @@ export class EmailService {
     });
   }
 
+  async sendUserInviteEmail(
+    email: string,
+    name: string,
+    temporaryPassword: string
+  ) {
+    await this.transporter.sendMail({
+      from: env.SMTP_FROM,
+      to: email,
+      subject: 'You have been invited to Inventory System',
+      html: `
+        <h2>Welcome to Inventory System</h2>
+
+        <p>Hello ${name || email},</p>
+
+        <p>Your account has been created.</p>
+
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Temporary password:</strong> ${temporaryPassword}</p>
+
+        <p>Please log in and change your password after your first login.</p>
+      `
+    });
+  }
+
   async sendWelcomeEmail(email: string, companyName: string) {
     await this.transporter.sendMail({
       from: env.SMTP_FROM,

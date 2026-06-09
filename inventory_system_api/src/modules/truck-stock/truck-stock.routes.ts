@@ -71,6 +71,18 @@ router.get(
   controller.getAssignments
 );
 
+router.put(
+  '/assignments/:id',
+  requirePermission(PERMISSIONS.ASSIGN_TRUCK_STOCK),
+  controller.updateAssignment
+);
+
+router.delete(
+  '/assignments/:id',
+  requirePermission(PERMISSIONS.ASSIGN_TRUCK_STOCK),
+  controller.deleteAssignment
+);
+
 router.get(
   '/my-stock',
   requirePermission(PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK),

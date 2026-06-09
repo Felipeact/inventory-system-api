@@ -226,6 +226,18 @@ export class TruckStockRepository {
         });
     }
 
+    findAssignmentByTruckAndTemplate(
+        truckId: string,
+        templateId: string
+    ) {
+        return prisma.truckStockAssignment.findFirst({
+            where: {
+                truckId,
+                templateId,
+            },
+        });
+    }
+
     createAssignment(data: {
         truckId: string;
         templateId: string;
@@ -241,6 +253,70 @@ export class TruckStockRepository {
                     }
                 }
             }
+        });
+    }
+
+    async updateAssignment(
+        assignmentId: string,
+        companyId: string,
+        data: {
+            truckId?: string;
+            templateId?: string;
+        }
+    ) {
+        const assignment = await prisma.truckStockAssignment.findFirst({
+            where: {
+                id: assignmentId,
+                truck: {
+                    companyId,
+                },
+            },
+        });
+
+        if (!assignment) {
+            return null;
+        }
+
+        return prisma.truckStockAssignment.update({
+            where: {
+                id: assignmentId,
+            },
+            data,
+            include: {
+                truck: true,
+                template: true,
+                assignedBy: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+            },
+        });
+    }
+
+    async deleteAssignment(
+        assignmentId: string,
+        companyId: string
+    ) {
+        const assignment = await prisma.truckStockAssignment.findFirst({
+            where: {
+                id: assignmentId,
+                truck: {
+                    companyId,
+                },
+            },
+        });
+
+        if (!assignment) {
+            return null;
+        }
+
+        return prisma.truckStockAssignment.delete({
+            where: {
+                id: assignmentId,
+            },
         });
     }
 
@@ -436,6 +512,7 @@ export class TruckStockRepository {
                 technician: {
                     select: {
                         id: true,
+                        name: true,
                         email: true,
                     },
                 },

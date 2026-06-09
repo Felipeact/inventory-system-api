@@ -2,12 +2,35 @@ import { ProductRepository } from './product.repository';
 import { AuditService } from '../../audit/audit.service';
 import { AppError } from '../../core/app-error';
 
+function optionalText(value: any): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const text = String(value).trim();
+
+  return text === '' ? null : text;
+}
+
 export class ProductService {
   private repo = new ProductRepository();
   private audit = new AuditService();
 
   async create(dto: any, companyId: string, userId: string) {
-    const { name, barcode, quantity, lowStockThreshold } = dto;
+    const {
+      name,
+      barcode,
+      quantity,
+      lowStockThreshold,
+      model,
+      type,
+      location,
+      project,
+      account,
+      status,
+      description,
+      imageUrl
+    } = dto;
 
     if (!name || !barcode) {
       throw new AppError('name and barcode are required', 400);
@@ -44,10 +67,18 @@ export class ProductService {
     }
 
     const product = await this.repo.create({
-      name: name.trim(),
-      barcode: barcode.trim(),
+      name: String(name).trim(),
+      barcode: String(barcode).trim(),
       companyId,
       lowStockThreshold: threshold,
+      model: optionalText(model),
+      type: optionalText(type) || 'Product',
+      location: optionalText(location) || 'Main Store',
+      project: optionalText(project),
+      account: optionalText(account),
+      status: optionalText(status) || 'Active',
+      description: optionalText(description),
+      imageUrl: optionalText(imageUrl),
       inventory: {
         create: {
           quantity: initialQuantity,
@@ -182,7 +213,20 @@ export class ProductService {
     companyId: string,
     userId: string
   ) {
-    const { name, barcode, quantity, lowStockThreshold } = dto;
+    const {
+      name,
+      barcode,
+      quantity,
+      lowStockThreshold,
+      model,
+      type,
+      location,
+      project,
+      account,
+      status,
+      description,
+      imageUrl
+    } = dto;
 
     if (!productId) {
       throw new AppError('Product id is required', 400);
@@ -204,10 +248,18 @@ export class ProductService {
     }
 
     const updated = await this.repo.update(productId, companyId, {
-      name: name.trim(),
-      barcode: barcode.trim(),
+      name: String(name).trim(),
+      barcode: String(barcode).trim(),
       quantity: parsedQuantity,
-      lowStockThreshold: threshold
+      lowStockThreshold: threshold,
+      model: optionalText(model),
+      type: optionalText(type) || 'Product',
+      location: optionalText(location) || 'Main Store',
+      project: optionalText(project),
+      account: optionalText(account),
+      status: optionalText(status) || 'Active',
+      description: optionalText(description),
+      imageUrl: optionalText(imageUrl)
     });
 
     await this.audit.log(

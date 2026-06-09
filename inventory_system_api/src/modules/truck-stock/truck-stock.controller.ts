@@ -119,6 +119,41 @@ export class TruckStockController extends BaseController {
         return this.ok(res, data);
     });
 
+    updateAssignment = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const id = req.params.id;
+
+        if (!id || typeof id !== 'string') {
+            throw new AppError('Assignment id is required', 400);
+        }
+
+        const data =
+            await this.service.updateAssignment(
+                id,
+                req.body,
+                req.user!.companyId,
+                req.user!.userId
+            );
+
+        return this.ok(res, data);
+    });
+
+    deleteAssignment = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const id = req.params.id;
+
+        if (!id || typeof id !== 'string') {
+            throw new AppError('Assignment id is required', 400);
+        }
+
+        const data =
+            await this.service.deleteAssignment(
+                id,
+                req.user!.companyId,
+                req.user!.userId
+            );
+
+        return this.ok(res, data);
+    });
+
     getMyTruckStock = asyncHandler(async (req: AuthRequest, res: Response) => {
         const data = await this.service.getMyTruckStock(
             req.user!.companyId,
