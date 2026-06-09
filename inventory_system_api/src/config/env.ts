@@ -52,7 +52,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().min(1, 'FRONTEND_URL is required'),
 
   /** Application version for update endpoints */
-  APP_VERSION: z.string().default('1.0.0')
+  APP_VERSION: z.string().default('1.0.0'),
+
+  /** Installer/download URL for desktop auto-update */
+  UPDATE_DOWNLOAD_URL: z.string().default('')
 });
 
 /** Validate environment variables against schema */

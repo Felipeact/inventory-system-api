@@ -50,6 +50,21 @@ export class UserController extends BaseController {
     return this.ok(res, data);
   });
 
+  updateCurrentProfile = asyncHandler(async (
+    req: AuthRequest,
+    res: Response
+  ) => {
+
+    const data =
+      await this.service.updateCurrentUserProfile(
+        req.user!.userId,
+        req.user!.companyId,
+        req.body
+      );
+
+    return this.ok(res, data);
+  });
+
   assignPermission = asyncHandler(async (
     req: AuthRequest,
     res: Response
@@ -93,6 +108,38 @@ export class UserController extends BaseController {
     return this.ok(res, data);
   });
 
+  invite = asyncHandler(async (
+    req: AuthRequest,
+    res: Response
+  ) => {
+
+    const data =
+      await this.service.inviteUser(
+        req.body,
+        req.user!.companyId,
+        req.user!.userId
+      );
+
+    return this.created(res, data);
+  });
+
+  resetPassword = asyncHandler(async (
+    req: AuthRequest,
+    res: Response
+  ) => {
+
+    const id: any = req.params.id;
+
+    const data =
+      await this.service.resetPassword(
+        id,
+        req.user!.companyId,
+        req.user!.userId
+      );
+
+    return this.ok(res, data);
+  });
+
   delete = asyncHandler(async (
     req: AuthRequest,
     res: Response
@@ -106,6 +153,8 @@ export class UserController extends BaseController {
         400
       );
     }
+
+
 
     await this.service.deleteUser(
       id,

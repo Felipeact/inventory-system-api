@@ -51,6 +51,30 @@ export class UserRepository {
     });
   }
 
+  updateCurrentUserProfile(
+  userId: string,
+  companyId: string,
+  data: {
+    name?: string;
+    email?: string;
+  }
+) {
+  return prisma.user.update({
+    where: {
+      id: userId,
+    },
+    data,
+    include: {
+      role: true,
+      userPermissions: {
+        include: {
+          permission: true,
+        },
+      },
+    },
+  });
+}
+
   findRoleByName(name: string, companyId: string) {
     return prisma.role.findUnique({
       where: {
@@ -121,6 +145,22 @@ export class UserRepository {
       where: { id: companyId }
     });
   }
+
+  async resetPassword(
+  userId: string,
+  companyId: string,
+  passwordHash: string
+) {
+  return prisma.user.updateMany({
+    where: {
+      id: userId,
+      companyId
+    },
+    data: {
+      passwordHash
+    }
+  });
+}
 
   countUsers(companyId: string) {
     return prisma.user.count({

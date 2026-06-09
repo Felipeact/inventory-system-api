@@ -50,3 +50,19 @@ export const userIdSchema = z.object({
     id: z.string().min(1, 'User id is required'),
   }),
 });
+
+export const updateCurrentUserProfileSchema = z.object({
+  body: z.object({
+    name: z.string().min(1, 'Name is required').optional(),
+    email: z.string().email('Invalid email address').optional(),
+  }),
+});
+
+export const inviteUserSchema = z.object({
+  body: z.object({
+    name: z.string().min(1, 'Name is required'),
+    email: z.string().email('Invalid email address'),
+    role: z.string().min(1, 'Role is required'),
+    status: z.string().optional(),
+  }),
+});

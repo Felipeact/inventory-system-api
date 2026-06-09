@@ -165,6 +165,63 @@ export class UserService {
     return user;
   }
 
+  async updateCurrentUserProfile(
+    userId: string,
+    companyId: string,
+    dto: any
+  ) {
+    const existingUser =
+      await this.repo.findUserInCompany(
+        userId,
+        companyId
+      );
+
+    if (!existingUser) {
+      throw new AppError(
+        'User not found in this company',
+        404
+      );
+    }
+
+    const updateData: {
+      name?: string;
+      email?: string;
+    } = {};
+
+    if (dto.name !== undefined) {
+      updateData.name =
+        String(dto.name).trim();
+    }
+
+    if (dto.email !== undefined) {
+      updateData.email =
+        String(dto.email).trim();
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new AppError(
+        'No profile fields provided',
+        400
+      );
+    }
+
+    const user =
+      await this.repo.updateCurrentUserProfile(
+        userId,
+        companyId,
+        updateData
+      );
+
+    await this.audit.log(
+      'UPDATE_OWN_PROFILE',
+      userId,
+      companyId,
+      `User updated own profile`
+    );
+
+    return user;
+  }
+
   async assignPermission(
     dto: any,
     companyId: string,
@@ -291,6 +348,83 @@ export class UserService {
 
   getUsers(companyId: string) {
     return this.repo.findAll(companyId);
+  }
+
+  async inviteUser(
+    dto: any,
+    companyId: string,
+    adminUserId: string
+  ) {
+    const temporaryPassword =
+      Math.random()
+        .toString(36)
+        .slice(-8);
+
+    const user =
+      await this.createUser(
+        {
+          name: dto.name,
+          email: dto.email,
+          password: temporaryPassword,
+          role: dto.role,
+          status: dto.status || 'Active',
+        },
+        companyId,
+        adminUserId
+      );
+
+    return {
+      user,
+      temporaryPassword,
+    };
+  }
+
+  async resetPassword(
+    userId: string,
+    companyId: string,
+    adminUserId: string
+  ) {
+
+    const user =
+      await this.repo.findUserInCompany(
+        userId,
+        companyId
+      );
+
+    if (!user) {
+      throw new AppError(
+        'User not found',
+        404
+      );
+    }
+
+    const temporaryPassword =
+      Math.random()
+        .toString(36)
+        .slice(-8);
+
+    const passwordHash =
+      await bcrypt.hash(
+        temporaryPassword,
+        10
+      );
+
+    await this.repo.resetPassword(
+      userId,
+      companyId,
+      passwordHash
+    );
+
+    await this.audit.log(
+      'RESET_PASSWORD',
+      adminUserId,
+      companyId,
+      `Reset password for user ${user.email}`
+    );
+
+    return {
+      temporaryPassword
+    };
   }
 
   async deleteUser(

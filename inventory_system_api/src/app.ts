@@ -54,10 +54,12 @@ app.get('/', (req, res) => {
 
 app.get('/updates/latest', (req, res) => {
   res.json({
-    version: env.APP_VERSION,
-    url: env.FRONTEND_URL,
-    releaseDate: new Date().toISOString(),
-    message: 'Latest update metadata'
+    version: env.APP_VERSION || '1.0.0',
+    downloadUrl: env.UPDATE_DOWNLOAD_URL || env.FRONTEND_URL,
+    releaseNotes: 'Latest update available.',
+    required: false,
+    changeLog: 'Bug fixes and improvements.',
+    releaseDate: new Date().toISOString()
   });
 });
 
