@@ -1,0 +1,151 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Inventory System API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "Login",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Authenticated"
+          }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "post": {
+        "summary": "Change current user password",
+        "responses": {
+          "200": {
+            "description": "Password changed"
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "List products"
+      },
+      "post": {
+        "summary": "Create product"
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "summary": "Get product"
+      },
+      "put": {
+        "summary": "Update product"
+      },
+      "delete": {
+        "summary": "Delete product"
+      }
+    },
+    "/assets": {
+      "get": {
+        "summary": "List assets"
+      },
+      "post": {
+        "summary": "Create asset"
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "List users"
+      },
+      "post": {
+        "summary": "Create/invite user"
+      }
+    },
+    "/truck-stock/trucks": {
+      "get": {
+        "summary": "List trucks"
+      },
+      "post": {
+        "summary": "Create truck"
+      }
+    },
+    "/truck-stock/templates": {
+      "get": {
+        "summary": "List stock templates"
+      },
+      "post": {
+        "summary": "Create stock template"
+      }
+    },
+    "/truck-stock/assignments": {
+      "get": {
+        "summary": "List assignments"
+      },
+      "post": {
+        "summary": "Assign template to truck"
+      }
+    },
+    "/truck-stock/my-stock": {
+      "get": {
+        "summary": "Current technician truck stock"
+      }
+    },
+    "/truck-stock/low-stock": {
+      "get": {
+        "summary": "Low stock alerts"
+      }
+    },
+    "/truck-stock/receipts/upload": {
+      "post": {
+        "summary": "Upload receipt file as base64 JSON",
+        "responses": {
+          "201": {
+            "description": "File URL created"
+          }
+        }
+      }
+    },
+    "/truck-stock/receipts": {
+      "get": {
+        "summary": "List receipts"
+      },
+      "post": {
+        "summary": "Create receipt using uploaded fileUrl"
+      }
+    },
+    "/truck-stock/movements": {
+      "get": {
+        "summary": "Truck stock movement history"
+      }
+    },
+    "/reports/inventory": {
+      "get": {
+        "summary": "Inventory summary report"
+      }
+    },
+    "/reports/assets": {
+      "get": {
+        "summary": "Assets summary report"
+      }
+    }
+  }
+}

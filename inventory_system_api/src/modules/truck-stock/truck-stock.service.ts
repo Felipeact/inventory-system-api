@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { TruckStockRepository } from './truck-stock.repository';
@@ -536,6 +538,76 @@ export class TruckStockService {
         return {
             message: 'Truck stock item used successfully',
             truckStockItem: updatedTruckItem,
+        };
+    }
+
+
+    async uploadReceiptFile(
+        dto: any,
+        companyId: string,
+        userId: string
+    ) {
+        const fileName = String(dto.fileName || '').trim();
+        const fileContentBase64 = String(dto.fileContentBase64 || '').trim();
+
+        if (!fileName || !fileContentBase64) {
+            throw new AppError('fileName and fileContentBase64 are required', 400);
+        }
+
+        const allowedExtensions = new Set([
+            '.png', '.jpg', '.jpeg', '.bmp', '.pdf', '.xlsx', '.xls', '.csv'
+        ]);
+
+        const extension = path.extname(fileName).toLowerCase();
+
+        if (!allowedExtensions.has(extension)) {
+            throw new AppError('Receipt file type is not allowed', 400);
+        }
+
+        const buffer = Buffer.from(fileContentBase64, 'base64');
+
+        if (!buffer.length) {
+            throw new AppError('Receipt file is empty', 400);
+        }
+
+        const maxBytes = 10 * 1024 * 1024;
+
+        if (buffer.length > maxBytes) {
+            throw new AppError('Receipt file is too large. Maximum size is 10MB', 400);
+        }
+
+        const uploadDir = path.join(
+            process.cwd(),
+            'uploads',
+            'receipts',
+            companyId
+        );
+
+        fs.mkdirSync(uploadDir, { recursive: true });
+
+        const safeBaseName = path
+            .basename(fileName, extension)
+            .replace(/[^a-zA-Z0-9-_]/g, '_')
+            .slice(0, 80);
+
+        const storedFileName = `${Date.now()}_${userId}_${safeBaseName}${extension}`;
+        const storedPath = path.join(uploadDir, storedFileName);
+
+        fs.writeFileSync(storedPath, buffer);
+
+        const fileUrl = `/uploads/receipts/${companyId}/${storedFileName}`;
+
+        await this.audit.log(
+            'UPLOAD_RECEIPT_FILE',
+            userId,
+            companyId,
+            `Uploaded receipt file ${storedFileName}`
+        );
+
+        return {
+            fileUrl,
+            fileName: storedFileName,
+            sizeBytes: buffer.length,
         };
     }
 

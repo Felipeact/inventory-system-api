@@ -85,7 +85,8 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: admin.name
+        role: admin.name,
+        mustChangePassword: false
       }
     };
   }
@@ -134,7 +135,8 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role.name
+        role: user.role.name,
+        mustChangePassword: Boolean((user as any).mustChangePassword)
       }
     };
   }
@@ -282,6 +284,57 @@ export class AuthService {
 
     return {
       message: 'Password reset successfully'
+    };
+  }
+
+
+  async changePassword(userId: string, companyId: string, dto: any) {
+    const { currentPassword, newPassword } = dto;
+
+    if (!currentPassword || !newPassword) {
+      throw new AppError('currentPassword and newPassword are required', 400);
+    }
+
+    if (String(newPassword).length < 6) {
+      throw new AppError('Password must be at least 6 characters', 400);
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        companyId
+      }
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404);
+    }
+
+    const valid = await bcrypt.compare(String(currentPassword), user.passwordHash);
+
+    if (!valid) {
+      throw new AppError('Current password is incorrect', 401);
+    }
+
+    const passwordHash = await bcrypt.hash(String(newPassword), 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        mustChangePassword: false
+      }
+    });
+
+    await this.audit.log(
+      'CHANGE_PASSWORD',
+      userId,
+      companyId,
+      'User changed password'
+    );
+
+    return {
+      message: 'Password changed successfully'
     };
   }
 }

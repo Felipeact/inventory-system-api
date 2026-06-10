@@ -43,4 +43,15 @@ export class AuthController extends BaseController {
     const data = await this.service.resetPassword(req.body);
     return this.ok(res, data);
   });
+
+
+  changePassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const data = await this.service.changePassword(
+      req.user!.userId,
+      req.user!.companyId,
+      req.body
+    );
+
+    return this.ok(res, data);
+  });
 }

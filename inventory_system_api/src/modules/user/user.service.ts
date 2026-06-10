@@ -70,6 +70,7 @@ export class UserService {
       passwordHash,
       companyId,
       roleId: role.id,
+      mustChangePassword: Boolean(dto.mustChangePassword),
     });
 
     await this.audit.log(
@@ -370,6 +371,7 @@ export class UserService {
           password: temporaryPassword,
           role: dto.role,
           status: dto.status || 'Active',
+          mustChangePassword: true,
         },
         companyId,
         adminUserId

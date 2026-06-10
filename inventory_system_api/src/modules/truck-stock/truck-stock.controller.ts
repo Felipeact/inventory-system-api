@@ -206,6 +206,17 @@ export class TruckStockController extends BaseController {
         return this.ok(res, data);
     });
 
+
+    uploadReceiptFile = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.uploadReceiptFile(
+            req.body,
+            req.user!.companyId,
+            req.user!.userId
+        );
+
+        return this.created(res, data);
+    });
+
     createReceipt = asyncHandler(async (req: AuthRequest, res: Response) => {
         const data = await this.service.createReceipt(
             req.body,

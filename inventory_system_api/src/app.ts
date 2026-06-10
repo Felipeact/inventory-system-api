@@ -6,6 +6,7 @@
  */
 
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import authRoutes from './modules/auth/auth.routes';
 import productRoutes from './modules/products/product.routes';
@@ -42,7 +43,10 @@ app.use(cors({
 }));
 
 /** Body parser middleware - parses incoming JSON requests with 1MB size limit */
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '15mb' }));
+
+/** Public receipt/file upload storage */
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 /** Rate limiting middleware - restricts requests to prevent abuse (300 requests per 15 minutes) */
 app.use(generalRateLimiter);
@@ -50,6 +54,10 @@ app.use(generalRateLimiter);
 /** Health check endpoint - returns API status */
 app.get('/', (req, res) => { 
   res.send('Inventory System API'); 
+});
+
+app.get('/openapi.json', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'openapi.json'));
 });
 
 app.get('/updates/latest', (req, res) => {

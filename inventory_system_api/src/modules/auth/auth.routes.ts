@@ -21,5 +21,6 @@ router.post('/logout', controller.logout);
 router.get('/validate', authMiddleware, controller.validate);
 router.post('/request-reset', authRateLimiter, validate(requestResetSchema), controller.requestPasswordReset);
 router.post('/reset-password', authRateLimiter, validate(resetPasswordSchema), controller.resetPassword);
+router.post('/change-password', authMiddleware, controller.changePassword);
 
 export default router;

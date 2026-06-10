@@ -37,6 +37,7 @@ model User {
   name         String @default("")
   email        String
   passwordHash String
+  mustChangePassword Boolean @default(false)
   companyId    String
   roleId       String
 

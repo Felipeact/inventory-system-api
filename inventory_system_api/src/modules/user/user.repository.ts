@@ -8,6 +8,7 @@ export class UserRepository {
     passwordHash: string;
     companyId: string;
     roleId: string;
+    mustChangePassword?: boolean;
   }) {
     return prisma.user.create({
       data,
@@ -157,7 +158,8 @@ export class UserRepository {
       companyId
     },
     data: {
-      passwordHash
+      passwordHash,
+      mustChangePassword: true
     }
   });
 }

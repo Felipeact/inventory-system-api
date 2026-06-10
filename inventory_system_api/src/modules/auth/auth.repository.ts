@@ -91,10 +91,19 @@ export class AuthRepository {
   updateUserPassword(userId: string, passwordHash: string) {
     return prisma.user.update({
       where: { id: userId },
-      data: { passwordHash }
+      data: { passwordHash, mustChangePassword: false }
     });
   }
 
   
 }
 
+
+
+// Added helper for authenticated password change
+export async function updateCurrentUserPassword(userId: string, passwordHash: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, mustChangePassword: false }
+  });
+}

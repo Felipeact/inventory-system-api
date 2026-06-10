@@ -119,6 +119,13 @@ router.post(
   controller.useTruckItem
 );
 
+
+router.post(
+  '/receipts/upload',
+  requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
+  controller.uploadReceiptFile
+);
+
 router.post(
   '/receipts',
   requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
