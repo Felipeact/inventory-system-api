@@ -3,17 +3,18 @@
     "target": "ES2020",
     "module": "commonjs",
 
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
-    "types": ["node"],
+    "types": ["node", "jest"],
 
     "esModuleInterop": true,
     "ignoreDeprecations": "6.0",
     "strict": true,
     "skipLibCheck": true,
+    "isolatedModules": true,
 
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules"]
+  "include": ["src", "generated"],
+  "exclude": ["node_modules", "dist"]
 }

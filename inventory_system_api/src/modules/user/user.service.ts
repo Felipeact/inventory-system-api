@@ -3,6 +3,7 @@ import { UserRepository } from './user.repository';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { EmailService } from '../email/email.service';
+import { logger } from '../../lib/logger';
 
 export class UserService {
 
@@ -389,10 +390,7 @@ export class UserService {
       emailSent = true;
     }
     catch (error) {
-      console.error(
-        'Failed to send invite email:',
-        error
-      );
+      logger.error({ err: error }, 'Failed to send invite email');
     }
 
     return {

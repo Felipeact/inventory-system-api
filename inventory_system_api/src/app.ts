@@ -1,16 +1,19 @@
 /**
  * @file app.ts
- * @description Main application entry point that configures Express server with all routes and middleware.
- * Sets up CORS, rate limiting, security headers, and routes for authentication, products, assets, users,
- * reports, exports, and super-admin functionality.
+ * @description Express application factory. Configures CORS, rate limiting, security
+ * headers, request logging, and routes for authentication, products, assets, users,
+ * reports, exports, super-admin, and truck-stock functionality.
+ *
+ * The HTTP server is started separately in `server.ts` so that the configured app
+ * can be imported by tests (e.g. supertest) without binding to a port.
  */
 
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import { pinoHttp } from 'pino-http';
 import authRoutes from './modules/auth/auth.routes';
 import productRoutes from './modules/products/product.routes';
-import dotenv from 'dotenv';
 import userRoutes from './modules/user/user.routes';
 import assetRoutes from './modules/asset/asset.routes';
 import reportRoutes from './modules/report/report.routes';
@@ -19,30 +22,47 @@ import { errorMiddleware } from './middleware/error.middleware';
 import { generalRateLimiter } from './middleware/rate-limit.middleware';
 import superAdminRoutes from './modules/super-admin/super-admin.routes';
 import helmet from 'helmet';
-import { env } from './config/env';
+import { env, corsOrigins } from './config/env';
+import { logger } from './lib/logger';
 import exportRoutes from './modules/export/export.routes';
 import truckStockRoutes from './modules/truck-stock/truck-stock.routes';
-
-dotenv.config();
 
 /** Initialize Express application instance */
 const app = express();
 
 app.set('trust proxy', 1); // Enable if behind a proxy (e.g., for rate limiting to work correctly)
 
+/**
+ * Structured request logging with per-request child logger and request id.
+ * Serializers keep the default per-request line concise (method, url, status,
+ * response time). Set LOG_LEVEL=debug for the full request/response detail.
+ */
+app.use(pinoHttp({
+  logger,
+  serializers: {
+    req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+    res: (res) => ({ statusCode: res.statusCode })
+  }
+}));
+
 /** Security middleware - sets HTTP headers to help protect the app from various attacks */
 app.use(helmet());
 
-/** CORS middleware - allows requests from specified origins with credentials support */
+/**
+ * CORS middleware - allows requests from origins configured via the CORS_ORIGINS env var.
+ * Requests with no origin (e.g. mobile apps, curl, same-origin) are allowed.
+ */
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin(origin, callback) {
+    if (!origin || corsOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
   credentials: true
 }));
 
-/** Body parser middleware - parses incoming JSON requests with 1MB size limit */
+/** Body parser middleware - parses incoming JSON requests with a size limit */
 app.use(express.json({ limit: '15mb' }));
 
 /** Public receipt/file upload storage */
@@ -52,8 +72,13 @@ app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(generalRateLimiter);
 
 /** Health check endpoint - returns API status */
-app.get('/', (req, res) => { 
-  res.send('Inventory System API'); 
+app.get('/', (req, res) => {
+  res.send('Inventory System API');
+});
+
+/** Liveness/readiness probe for orchestrators (Docker, k8s, load balancers) */
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
 app.get('/openapi.json', (req, res) => {
@@ -84,7 +109,4 @@ app.use('/truck-stock', truckStockRoutes);
 /** Error handling middleware - must be last middleware */
 app.use(errorMiddleware);
 
-/** Start the server on configured port */
-app.listen(env.PORT, () => {
-  console.log(`Server running on port ${env.PORT}`);
-});
+export default app;

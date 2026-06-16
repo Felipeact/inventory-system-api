@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB: inventory
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://inventory:inventory@db:5432/inventory?sslmode=disable"
+      JWT_SECRET: "${JWT_SECRET:-dev-only-change-me}"
+      JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:-dev-only-change-me-too}"
+      PORT: "3000"
+      NODE_ENV: "production"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}"
+      SMTP_HOST: "${SMTP_HOST:-smtp.example.com}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-user@example.com}"
+      SMTP_PASS: "${SMTP_PASS:-changeme}"
+      SMTP_FROM: "${SMTP_FROM:-user@example.com}"
+      FRONTEND_URL: "${FRONTEND_URL:-http://localhost:3001}"
+    ports:
+      - "3000:3000"
+    # Apply pending migrations, then start the compiled server.
+    command: sh -c "npm run migrate:deploy && node dist/src/server.js"
+
+volumes:
+  db_data:

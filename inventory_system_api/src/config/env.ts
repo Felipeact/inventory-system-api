@@ -55,7 +55,30 @@ const envSchema = z.object({
   APP_VERSION: z.string().default('1.0.0'),
 
   /** Installer/download URL for desktop auto-update */
-  UPDATE_DOWNLOAD_URL: z.string().default('')
+  UPDATE_DOWNLOAD_URL: z.string().default(''),
+
+  /** Node environment */
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+
+  /** Log level for the structured logger */
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+  /**
+   * Comma-separated list of allowed CORS origins.
+   * Defaults to local dev origins. In production, set this to your real frontend domains.
+   */
+  CORS_ORIGINS: z
+    .string()
+    .default('http://localhost:3000,http://localhost:5173'),
+
+  /** Max number of clients in the PostgreSQL connection pool */
+  DB_POOL_MAX: z.coerce.number().int().positive().default(10),
+
+  /** Milliseconds a client may sit idle in the pool before being closed */
+  DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(30000),
+
+  /** Milliseconds to wait for a connection from the pool before timing out */
+  DB_POOL_CONNECTION_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(10000)
 });
 
 /** Validate environment variables against schema */
@@ -70,3 +93,8 @@ if (!parsed.success) {
 
 /** Exported validated environment variables */
 export const env = parsed.data;
+
+/** Parsed list of allowed CORS origins, trimmed of whitespace and empty entries */
+export const corsOrigins = env.CORS_ORIGINS.split(',')
+  .map((origin) => origin.trim())
+  .filter((origin) => origin.length > 0);

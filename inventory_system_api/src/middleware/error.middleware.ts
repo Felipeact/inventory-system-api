@@ -7,6 +7,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../core/app-error';
+import { logger } from '../lib/logger';
 
 /**
  * Error handling middleware that catches and responds to all application errors
@@ -27,8 +28,8 @@ export const errorMiddleware = (
   res: Response,
   next: NextFunction
 ) => {
-  // Log error for debugging
-  console.error(err);
+  // Log error with request context for debugging and audit trails
+  logger.error({ err, method: req.method, url: req.originalUrl }, err.message);
 
   // Handle custom application errors
   if (err instanceof AppError) {
