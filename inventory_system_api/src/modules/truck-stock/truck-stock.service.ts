@@ -1,8 +1,20 @@
-import fs from 'fs';
 import path from 'path';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { TruckStockRepository } from './truck-stock.repository';
+import { putObject } from '../../lib/storage';
+
+/** Map of allowed receipt file extensions to their MIME types. */
+const RECEIPT_CONTENT_TYPES: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.bmp': 'image/bmp',
+    '.pdf': 'application/pdf',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.xls': 'application/vnd.ms-excel',
+    '.csv': 'text/csv'
+};
 
 export class TruckStockService {
     private repo = new TruckStockRepository();
@@ -576,26 +588,16 @@ export class TruckStockService {
             throw new AppError('Receipt file is too large. Maximum size is 10MB', 400);
         }
 
-        const uploadDir = path.join(
-            process.cwd(),
-            'uploads',
-            'receipts',
-            companyId
-        );
-
-        fs.mkdirSync(uploadDir, { recursive: true });
-
         const safeBaseName = path
             .basename(fileName, extension)
             .replace(/[^a-zA-Z0-9-_]/g, '_')
             .slice(0, 80);
 
         const storedFileName = `${Date.now()}_${userId}_${safeBaseName}${extension}`;
-        const storedPath = path.join(uploadDir, storedFileName);
+        const objectKey = `receipts/${companyId}/${storedFileName}`;
+        const contentType = RECEIPT_CONTENT_TYPES[extension] ?? 'application/octet-stream';
 
-        fs.writeFileSync(storedPath, buffer);
-
-        const fileUrl = `/uploads/receipts/${companyId}/${storedFileName}`;
+        const { url: fileUrl } = await putObject(objectKey, buffer, contentType);
 
         await this.audit.log(
             'UPLOAD_RECEIPT_FILE',

@@ -78,8 +78,70 @@ const envSchema = z.object({
   DB_POOL_IDLE_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(30000),
 
   /** Milliseconds to wait for a connection from the pool before timing out */
-  DB_POOL_CONNECTION_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(10000)
-});
+  DB_POOL_CONNECTION_TIMEOUT_MS: z.coerce.number().int().nonnegative().default(10000),
+
+  /**
+   * Storage backend for uploaded receipt files.
+   * - `local`: write to the local filesystem (dev, or a mounted persistent volume).
+   * - `s3`:    write to an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO).
+   */
+  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+
+  /** Directory (relative to cwd) for the local storage driver */
+  UPLOAD_DIR: z.string().default('uploads'),
+
+  /** S3 bucket name (required when STORAGE_DRIVER=s3) */
+  S3_BUCKET: z.string().default(''),
+
+  /** S3 region (use 'auto' for Cloudflare R2) */
+  S3_REGION: z.string().default('auto'),
+
+  /** Custom S3 endpoint, e.g. https://<account>.r2.cloudflarestorage.com (blank for AWS S3) */
+  S3_ENDPOINT: z.string().default(''),
+
+  /** S3 access key id (required when STORAGE_DRIVER=s3) */
+  S3_ACCESS_KEY_ID: z.string().default(''),
+
+  /** S3 secret access key (required when STORAGE_DRIVER=s3) */
+  S3_SECRET_ACCESS_KEY: z.string().default(''),
+
+  /** Public base URL files are served from, e.g. https://cdn.example.com (no trailing slash) */
+  S3_PUBLIC_BASE_URL: z.string().default('')
+})
+  .superRefine((val, ctx) => {
+    // When using S3 storage, credentials and a bucket are mandatory.
+    if (val.STORAGE_DRIVER === 's3') {
+      for (const key of ['S3_BUCKET', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const) {
+        if (!val[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required when STORAGE_DRIVER=s3` });
+        }
+      }
+    }
+
+    // In production, refuse to boot with weak or placeholder JWT secrets.
+    if (val.NODE_ENV === 'production') {
+      const isWeak = (secret: string) =>
+        secret.length < 32 || /change.?me|your-super-secret|secret-key|placeholder/i.test(secret);
+
+      for (const key of ['JWT_SECRET', 'JWT_REFRESH_SECRET'] as const) {
+        if (isWeak(val[key])) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `${key} must be a strong, non-placeholder value (32+ chars) in production. Generate one with: openssl rand -hex 32`
+          });
+        }
+      }
+
+      if (val.JWT_SECRET === val.JWT_REFRESH_SECRET) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['JWT_REFRESH_SECRET'],
+          message: 'JWT_REFRESH_SECRET must differ from JWT_SECRET in production'
+        });
+      }
+    }
+  });
 
 /** Validate environment variables against schema */
 const parsed = envSchema.safeParse(process.env);

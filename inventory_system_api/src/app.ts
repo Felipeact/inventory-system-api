@@ -65,8 +65,11 @@ app.use(cors({
 /** Body parser middleware - parses incoming JSON requests with a size limit */
 app.use(express.json({ limit: '15mb' }));
 
-/** Public receipt/file upload storage */
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+/**
+ * Public receipt/file storage for the `local` storage driver. When STORAGE_DRIVER=s3
+ * files are served directly from the bucket/CDN, so this route is effectively unused.
+ */
+app.use('/uploads', express.static(path.join(process.cwd(), env.UPLOAD_DIR)));
 
 /** Rate limiting middleware - restricts requests to prevent abuse (300 requests per 15 minutes) */
 app.use(generalRateLimiter);

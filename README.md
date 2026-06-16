@@ -76,6 +76,32 @@ any required value is missing or malformed. See
 - `DB_POOL_MAX`, `DB_POOL_IDLE_TIMEOUT_MS`, `DB_POOL_CONNECTION_TIMEOUT_MS` — pool tuning.
 - `LOG_LEVEL` / `NODE_ENV` — logging verbosity and environment mode.
 - `SMTP_*`, `FRONTEND_URL` — email delivery and link generation.
+- `STORAGE_DRIVER` (`local`|`s3`) + `UPLOAD_DIR` / `S3_*` — where uploaded receipts are stored.
+
+## File storage
+
+Uploaded receipt files go through a storage abstraction
+([`src/lib/storage.ts`](inventory_system_api/src/lib/storage.ts)) with two drivers:
+
+- **`local`** (default) — writes under `UPLOAD_DIR` and serves files at `/uploads`.
+  Fine for development or a **mounted persistent volume**.
+- **`s3`** — writes to an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO). Files
+  survive redeploys and work across multiple instances. **Use this on ephemeral
+  container platforms** (Railway/Render/Fly), where the local filesystem is wiped on
+  every deploy. Set `STORAGE_DRIVER=s3` plus `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
+  `S3_SECRET_ACCESS_KEY` (and `S3_ENDPOINT`/`S3_REGION` for R2).
+
+## Deployment checklist
+
+1. **Generate strong secrets:** `openssl rand -hex 32` for `JWT_SECRET` and again for
+   `JWT_REFRESH_SECRET` (must differ). With `NODE_ENV=production` the app **refuses to
+   boot** with short or placeholder secrets.
+2. **Set env vars in the platform dashboard** (not a committed `.env`): the secrets
+   above, `DATABASE_URL`, `CORS_ORIGINS` (your real frontend origin), `NODE_ENV=production`,
+   and `SMTP_*`.
+3. **Choose storage:** `STORAGE_DRIVER=s3` with bucket credentials (recommended), or a
+   mounted volume with `STORAGE_DRIVER=local`.
+4. **Run migrations on release:** `npm run migrate:deploy`.
 
 ## API surface
 
