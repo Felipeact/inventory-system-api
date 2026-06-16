@@ -381,13 +381,11 @@ export class UserService {
     let emailSent = false;
 
     try {
-      await this.email.sendUserInviteEmail(
+      emailSent = await this.email.sendUserInviteEmail(
         String(dto.email).trim(),
         dto.name ? String(dto.name).trim() : '',
         temporaryPassword
       );
-
-      emailSent = true;
     }
     catch (error) {
       logger.error({ err: error }, 'Failed to send invite email');

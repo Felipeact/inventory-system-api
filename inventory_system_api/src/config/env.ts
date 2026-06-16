@@ -33,23 +33,27 @@ const envSchema = z.object({
   /** Server port (defaults to 3000) */
   PORT: z.string().default('3000'),
 
-  /** SMTP server hostname for email delivery */
-  SMTP_HOST: z.string().min(1, 'SMTP_HOST is required'),
-  
+  /**
+   * SMTP settings for transactional email (password reset, invites, welcome).
+   * Optional: if any are unset, email delivery is disabled and the related flows
+   * become no-ops instead of crashing. Set all four to enable email.
+   */
+  SMTP_HOST: z.string().default(''),
+
   /** SMTP server port (defaults to 587) */
   SMTP_PORT: z.string().default('587'),
-  
+
   /** SMTP authentication username */
-  SMTP_USER: z.string().min(1, 'SMTP_USER is required'),
-  
+  SMTP_USER: z.string().default(''),
+
   /** SMTP authentication password */
-  SMTP_PASS: z.string().min(1, 'SMTP_PASS is required'),
-  
+  SMTP_PASS: z.string().default(''),
+
   /** Email sender address */
-  SMTP_FROM: z.string().min(1, 'SMTP_FROM is required'),
-  
-  /** Frontend application URL for creating links in emails */
-  FRONTEND_URL: z.string().min(1, 'FRONTEND_URL is required'),
+  SMTP_FROM: z.string().default(''),
+
+  /** Frontend application URL for creating links in emails (optional until a frontend exists) */
+  FRONTEND_URL: z.string().default(''),
 
   /** Application version for update endpoints */
   APP_VERSION: z.string().default('1.0.0'),
@@ -160,3 +164,11 @@ export const env = parsed.data;
 export const corsOrigins = env.CORS_ORIGINS.split(',')
   .map((origin) => origin.trim())
   .filter((origin) => origin.length > 0);
+
+/**
+ * Whether transactional email is configured. When false, email-dependent flows
+ * (password reset, invites, welcome) are skipped instead of failing.
+ */
+export const emailEnabled = Boolean(
+  env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS && env.SMTP_FROM
+);

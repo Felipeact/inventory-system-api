@@ -2,30 +2,54 @@
  * @file email.service.ts
  * @description Email sending service.
  * Sends transactional emails (welcome, password reset, etc.) using SMTP.
+ *
+ * Email is optional: when SMTP is not configured (see `emailEnabled` in env.ts),
+ * every method logs a warning and returns without sending, so the surrounding
+ * flows (registration, password reset, user invites) keep working. Configure the
+ * SMTP_* variables to enable delivery.
  */
 
-import nodemailer from 'nodemailer';
-import { env } from '../../config/env';
+import nodemailer, { Transporter } from 'nodemailer';
+import { env, emailEnabled } from '../../config/env';
+import { logger } from '../../lib/logger';
 
 /**
  * EmailService - Transactional email handling
  */
 export class EmailService {
-  private transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: Number(env.SMTP_PORT),
-    secure: Number(env.SMTP_PORT) === 465,
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS
+  private transporter: Transporter | null = emailEnabled
+    ? nodemailer.createTransport({
+        host: env.SMTP_HOST,
+        port: Number(env.SMTP_PORT),
+        secure: Number(env.SMTP_PORT) === 465,
+        auth: {
+          user: env.SMTP_USER,
+          pass: env.SMTP_PASS
+        }
+      })
+    : null;
+
+  /**
+   * Send an email if SMTP is configured; otherwise log and skip.
+   * @returns true if the email was dispatched, false if email is disabled.
+   */
+  private async send(options: nodemailer.SendMailOptions): Promise<boolean> {
+    if (!this.transporter) {
+      logger.warn(
+        { to: options.to, subject: options.subject },
+        'Email not sent: SMTP is not configured (set SMTP_* env vars to enable)'
+      );
+      return false;
     }
-  });
+
+    await this.transporter.sendMail({ from: env.SMTP_FROM, ...options });
+    return true;
+  }
 
   async sendPasswordResetEmail(email: string, resetToken: string) {
     const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    await this.transporter.sendMail({
-      from: env.SMTP_FROM,
+    await this.send({
       to: email,
       subject: 'Reset your password',
       html: `
@@ -42,9 +66,8 @@ export class EmailService {
     email: string,
     name: string,
     temporaryPassword: string
-  ) {
-    await this.transporter.sendMail({
-      from: env.SMTP_FROM,
+  ): Promise<boolean> {
+    return this.send({
       to: email,
       subject: 'You have been invited to Inventory System',
       html: `
@@ -63,8 +86,7 @@ export class EmailService {
   }
 
   async sendWelcomeEmail(email: string, companyName: string) {
-    await this.transporter.sendMail({
-      from: env.SMTP_FROM,
+    await this.send({
       to: email,
       subject: 'Welcome to Inventory System',
       html: `
