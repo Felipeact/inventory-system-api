@@ -1,0 +1,96 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  Boxes,
+  HardHat,
+  Truck,
+  BarChart3,
+  Settings,
+  X,
+} from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
+import { cn } from "@/lib/utils";
+
+const NAV = [
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Products", href: "/products", icon: Boxes },
+  { label: "Assets", href: "/assets", icon: HardHat },
+  { label: "Trucks", href: "/trucks", icon: Truck },
+  { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Settings", href: "/settings", icon: Settings },
+];
+
+export function Sidebar({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const pathname = usePathname();
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-ink-900/40 lg:hidden"
+          onClick={onClose}
+          aria-hidden
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-ink-100 bg-white transition-transform lg:static lg:translate-x-0",
+          open ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <div className="flex h-16 items-center justify-between border-b border-ink-100 px-5">
+          <Logo href="/dashboard" />
+          <button className="btn-ghost p-1.5 lg:hidden" onClick={onClose} aria-label="Close menu">
+            <X size={18} />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          {NAV.map((item) => {
+            const active =
+              pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                  active
+                    ? "bg-brand-50 text-brand-700"
+                    : "text-ink-600 hover:bg-ink-50 hover:text-ink-900",
+                )}
+              >
+                <item.icon size={18} className={active ? "text-brand-600" : "text-ink-400"} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="border-t border-ink-100 p-3">
+          <Link
+            href="/request-demo"
+            className="block rounded-lg bg-gradient-to-br from-brand-600 to-brand-500 p-4 text-white"
+          >
+            <p className="text-sm font-semibold">Upgrade your plan</p>
+            <p className="mt-1 text-xs text-brand-50/90">
+              Unlock unlimited users, trucks & reports.
+            </p>
+          </Link>
+        </div>
+      </aside>
+    </>
+  );
+}
