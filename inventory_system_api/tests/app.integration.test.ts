@@ -36,4 +36,11 @@ describe('app integration', () => {
     const res = await request(app).get('/health');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
+
+  it('returns a JSON 404 for unknown routes', async () => {
+    const res = await request(app).get('/this-route-does-not-exist');
+    expect(res.status).toBe(404);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toContain('Route not found');
+  });
 });

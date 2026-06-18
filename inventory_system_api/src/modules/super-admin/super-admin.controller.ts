@@ -8,7 +8,11 @@ export class SuperAdminController extends BaseController {
     private service = new SuperAdminService();
 
     createSuperAdmin = asyncHandler(async (req: AuthRequest, res: Response) => {
-        const data = await this.service.createSuperAdmin(req.body);
+        const bootstrapSecret = req.headers['x-bootstrap-secret'];
+        const data = await this.service.createSuperAdmin(
+            req.body,
+            typeof bootstrapSecret === 'string' ? bootstrapSecret : undefined
+        );
         return this.created(res, data);
     });
 

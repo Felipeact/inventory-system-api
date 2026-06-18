@@ -284,10 +284,20 @@ export const api = {
    * resource: csv, xlsx, pdf (plus /exports/company/json).
    */
   async downloadExport(path: string, filename: string) {
-    const token = tokenStore.access();
-    const res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    const fetchExport = () => {
+      const token = tokenStore.access();
+      return fetch(`${API_BASE_URL}${path}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: "no-store",
+      });
+    };
+
+    let res = await fetchExport();
+    // Mirror request()'s behaviour: transparently refresh once on an expired token.
+    if (res.status === 401) {
+      const refreshed = await tryRefresh();
+      if (refreshed) res = await fetchExport();
+    }
     if (!res.ok) throw new ApiError(res.status, `Export failed (${res.status})`);
     const blob = await res.blob();
     if (!isBrowser()) return;

@@ -9,6 +9,9 @@ import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { EmailService } from '../email/email.service';
 
+/** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
+const BCRYPT_ROUNDS = 12;
+
 export class AuthService {
   private repo = new AuthRepository();
   private roleService = new RoleService();
@@ -43,7 +46,7 @@ export class AuthService {
 
     const { admin } = await this.roleService.createDefaultRoles(company.id);
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     const user = await this.repo.createUser({
       email,
@@ -269,11 +272,14 @@ export class AuthService {
       throw new AppError('Reset token expired', 401);
     }
 
-    const passwordHash = await bcrypt.hash(newPassword, 10);
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
     await this.repo.updateUserPassword(resetToken.userId, passwordHash);
 
     await this.repo.markPasswordResetTokenUsed(token);
+
+    // Revoke all existing sessions so a stolen/old refresh token can't outlive the reset.
+    await this.repo.deleteUserRefreshTokens(resetToken.userId);
 
     await this.audit.log(
       'RESET_PASSWORD',
@@ -316,7 +322,7 @@ export class AuthService {
       throw new AppError('Current password is incorrect', 401);
     }
 
-    const passwordHash = await bcrypt.hash(String(newPassword), 10);
+    const passwordHash = await bcrypt.hash(String(newPassword), BCRYPT_ROUNDS);
 
     await prisma.user.update({
       where: { id: userId },
@@ -325,6 +331,9 @@ export class AuthService {
         mustChangePassword: false
       }
     });
+
+    // Revoke all existing sessions so other devices are forced to re-authenticate.
+    await this.repo.deleteUserRefreshTokens(userId);
 
     await this.audit.log(
       'CHANGE_PASSWORD',

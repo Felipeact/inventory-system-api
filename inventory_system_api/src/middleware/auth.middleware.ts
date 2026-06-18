@@ -27,8 +27,18 @@ export interface AuthRequest extends Request {
     companyId: string;
     role: string;
     permissions: string[];
+    mustChangePassword: boolean;
   };
 }
+
+/**
+ * Endpoints that remain reachable while a user is flagged `mustChangePassword`, so they
+ * can actually clear the flag (or inspect their session) without being locked out.
+ */
+const PASSWORD_CHANGE_ALLOWLIST = new Set([
+  '/auth/change-password',
+  '/auth/validate'
+]);
 
 /**
  * Authentication middleware - validates JWT and loads user context
@@ -116,7 +126,17 @@ export const authMiddleware = async (
       companyId: user.companyId,
       role: user.role.name,
       permissions,
+      mustChangePassword: Boolean((user as { mustChangePassword?: boolean }).mustChangePassword),
     };
+
+    // Enforce a forced password change (set on invite / admin reset) at the API layer:
+    // block every authenticated endpoint except the ones needed to clear the flag.
+    if (req.user.mustChangePassword) {
+      const pathname = req.originalUrl.split('?')[0];
+      if (!PASSWORD_CHANGE_ALLOWLIST.has(pathname)) {
+        throw new AppError('Password change required before continuing', 403);
+      }
+    }
 
     next();
   } catch (error) {

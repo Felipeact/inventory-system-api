@@ -1,16 +1,43 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { SuperAdminRepository } from './super-admin.repository';
 import { AppError } from '../../core/app-error';
 import { generateSuperAdminToken } from '../../utils/jwt';
+import { env } from '../../config/env';
+
+/** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
+const BCRYPT_ROUNDS = 12;
+
+/** Timing-safe comparison of two secrets that avoids leaking length/content via timing. */
+function secretsMatch(provided: string, expected: string): boolean {
+    if (!expected) return false;
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+}
 
 export class SuperAdminService {
     private repo = new SuperAdminRepository();
 
-    async createSuperAdmin(dto: any) {
+    async createSuperAdmin(dto: any, bootstrapSecret?: string) {
         const { email, password } = dto;
 
         if (!email || !password) {
             throw new AppError('email and password are required', 400);
+        }
+
+        // Bootstrap protection: when a SUPER_ADMIN_BOOTSTRAP_SECRET is configured (always
+        // in production), the request must present a matching secret. This stops an
+        // attacker from claiming the very first super-admin account on a fresh deploy.
+        if (env.SUPER_ADMIN_BOOTSTRAP_SECRET) {
+            if (!secretsMatch(bootstrapSecret ?? '', env.SUPER_ADMIN_BOOTSTRAP_SECRET)) {
+                throw new AppError('Invalid or missing bootstrap secret', 403);
+            }
+        } else if (env.NODE_ENV === 'production') {
+            // Defensive: env validation already enforces this, but never allow an
+            // unauthenticated bootstrap in production even if validation is bypassed.
+            throw new AppError('Super-admin bootstrap is disabled', 403);
         }
 
         const totalAdmins = await this.repo.countSuperAdmins();
@@ -25,7 +52,7 @@ export class SuperAdminService {
             throw new AppError('Super admin already exists', 409);
         }
 
-        const passwordHash = await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
         return this.repo.create({
             email,

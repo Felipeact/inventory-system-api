@@ -41,3 +41,13 @@ process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('unhandledRejection', (reason) => {
   logger.error({ err: reason }, 'Unhandled promise rejection');
 });
+
+/**
+ * An uncaught exception leaves the process in an undefined state. Log it and exit so the
+ * orchestrator (Docker/Railway) restarts a clean instance rather than serving from a
+ * potentially corrupted runtime.
+ */
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught exception, shutting down');
+  void shutdown('uncaughtException');
+});

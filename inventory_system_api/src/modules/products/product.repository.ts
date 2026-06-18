@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { AppError } from '../../core/app-error';
 
 export class ProductRepository {
   private productInclude = {
@@ -163,7 +164,7 @@ export class ProductRepository {
       });
 
       if (product.count === 0) {
-        throw new Error('Product not found');
+        throw new AppError('Product not found', 404);
       }
 
       await tx.inventory.updateMany({

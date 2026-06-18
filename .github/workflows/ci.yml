@@ -67,3 +67,35 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  web:
+    name: Web (Next.js)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      # Placeholder API origin so the production build's env guard is satisfied in CI.
+      NEXT_PUBLIC_API_BASE_URL: https://api.example.com
+      NEXT_PUBLIC_SITE_URL: https://stockpilot.app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { SuperAdminController } from './super-admin.controller';
 import { superAdminMiddleware } from '../../middleware/super-admin.middleware';
 import { validate } from '../../middleware/validate.middleware';
+import { authRateLimiter } from '../../middleware/rate-limit.middleware';
 import { companyIdSchema, createActivationCodeSchema, createSuperAdminSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
 
 const router = Router();
@@ -9,12 +10,14 @@ const controller = new SuperAdminController();
 
 router.post(
   '/create',
+  authRateLimiter,
   validate(createSuperAdminSchema),
   controller.createSuperAdmin
 );
 
 router.post(
   '/login',
+  authRateLimiter,
   validate(superAdminLoginSchema),
   controller.login
 );

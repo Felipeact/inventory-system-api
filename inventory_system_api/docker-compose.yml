@@ -26,6 +26,9 @@ services:
       DATABASE_URL: "postgresql://inventory:inventory@db:5432/inventory?sslmode=disable"
       JWT_SECRET: "${JWT_SECRET:-dev-only-change-me}"
       JWT_REFRESH_SECRET: "${JWT_REFRESH_SECRET:-dev-only-change-me-too}"
+      # One-time secret for creating the first super-admin (sent as x-bootstrap-secret).
+      # Override with a real `openssl rand -hex 32` value for any non-local deployment.
+      SUPER_ADMIN_BOOTSTRAP_SECRET: "${SUPER_ADMIN_BOOTSTRAP_SECRET:-dev-only-bootstrap-secret-change-me}"
       PORT: "3000"
       NODE_ENV: "production"
       LOG_LEVEL: "${LOG_LEVEL:-info}"

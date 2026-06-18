@@ -1,0 +1,165 @@
+/* ===== Page setup ===== */
+@page {
+  size: A4;
+  margin: 20mm 16mm 18mm 16mm;
+  @top-center {
+    content: "Inventory & Truck-Stock Platform — Technical Documentation";
+    font-size: 7.5pt;
+    color: #9aa3af;
+  }
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 7.5pt;
+    color: #9aa3af;
+  }
+}
+@page :first {
+  margin: 0;
+  @top-center { content: none; }
+  @bottom-center { content: none; }
+}
+
+/* ===== Base typography ===== */
+* { box-sizing: border-box; }
+html { font-size: 10.5pt; }
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  color: #1f2933;
+  line-height: 1.5;
+  margin: 0;
+}
+
+h1, h2, h3, h4 { font-weight: 700; color: #0f172a; line-height: 1.25; }
+h1 {
+  font-size: 20pt;
+  margin: 0 0 0.5em;
+  padding-bottom: 0.25em;
+  border-bottom: 3px solid #4338ca;
+  page-break-before: always;
+  page-break-after: avoid;
+}
+h1:first-of-type { page-break-before: avoid; }
+h2 {
+  font-size: 14.5pt;
+  margin: 1.4em 0 0.5em;
+  color: #4338ca;
+  page-break-after: avoid;
+}
+h3 {
+  font-size: 12pt;
+  margin: 1.1em 0 0.4em;
+  color: #312e81;
+  page-break-after: avoid;
+}
+h4 { font-size: 10.5pt; margin: 0.9em 0 0.3em; color: #475569; page-break-after: avoid; }
+
+p { margin: 0.5em 0; }
+a { color: #4338ca; text-decoration: none; }
+ul, ol { margin: 0.4em 0 0.6em; padding-left: 1.4em; }
+li { margin: 0.18em 0; }
+strong { color: #0f172a; }
+hr { border: none; border-top: 1px solid #e2e8f0; margin: 1.4em 0; }
+
+/* ===== Code ===== */
+code {
+  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", Menlo, monospace;
+  font-size: 8.6pt;
+  background: #f1f5f9;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #be123c;
+}
+pre {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 8.3pt;
+  line-height: 1.45;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  page-break-inside: avoid;
+  margin: 0.6em 0;
+}
+pre code { background: transparent; color: inherit; padding: 0; font-size: inherit; }
+.codehilite { margin: 0.6em 0; page-break-inside: avoid; }
+.codehilite pre { margin: 0; }
+
+/* ===== Tables ===== */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.7em 0;
+  font-size: 8.8pt;
+  page-break-inside: avoid;
+}
+th, td {
+  border: 1px solid #cbd5e1;
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+th { background: #4338ca; color: #fff; font-weight: 600; }
+tr:nth-child(even) td { background: #f8fafc; }
+
+/* ===== Callouts (blockquotes) ===== */
+blockquote {
+  margin: 0.7em 0;
+  padding: 8px 12px;
+  background: #eef2ff;
+  border-left: 4px solid #4338ca;
+  color: #312e81;
+  border-radius: 0 4px 4px 0;
+  page-break-inside: avoid;
+}
+blockquote p { margin: 0.2em 0; }
+
+/* ===== Cover page ===== */
+.cover {
+  height: 297mm;
+  background: linear-gradient(150deg, #312e81 0%, #4338ca 55%, #6366f1 100%);
+  color: #fff;
+  padding: 38mm 22mm;
+  page-break-after: always;
+  position: relative;
+}
+.cover .glyph {
+  width: 64px; height: 64px;
+  border: 3px solid rgba(255,255,255,0.85);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 30px; font-weight: 800; margin-bottom: 26mm;
+}
+.cover h1 {
+  font-size: 33pt; border: none; margin: 0; padding: 0; color: #fff;
+  page-break-before: avoid; line-height: 1.15;
+}
+.cover .sub { font-size: 14pt; margin-top: 10mm; color: #e0e7ff; font-weight: 400; max-width: 150mm; }
+.cover .meta {
+  position: absolute; bottom: 30mm; left: 22mm; right: 22mm;
+  font-size: 9.5pt; color: #c7d2fe; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 6mm;
+}
+.cover .meta strong { color: #fff; }
+.cover .pills { margin-top: 16mm; }
+.cover .pill {
+  display: inline-block; border: 1px solid rgba(255,255,255,0.5);
+  border-radius: 20px; padding: 4px 14px; margin: 0 8px 8px 0; font-size: 9.5pt;
+}
+
+/* ===== TOC ===== */
+.toc-page { page-break-after: always; }
+.toc-page h1 { page-break-before: avoid; }
+.toc ul { list-style: none; padding-left: 0; }
+.toc > ul > li { font-weight: 700; margin-top: 0.5em; color: #0f172a; }
+.toc ul ul { padding-left: 1.2em; font-weight: 400; }
+.toc ul ul li { color: #475569; font-size: 9.6pt; }
+.toc a { color: inherit; }
+.toc a::after { content: leader('.') target-counter(attr(href), page); color: #94a3b8; }
+
+/* status chips */
+.tag { font-size: 7.6pt; font-weight: 700; padding: 1px 6px; border-radius: 10px; color:#fff; }
+.tag-crit { background:#be123c; }
+.tag-high { background:#c2410c; }
+.tag-med  { background:#0369a1; }
+.tag-done { background:#15803d; }

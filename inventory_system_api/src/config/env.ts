@@ -55,6 +55,14 @@ const envSchema = z.object({
   /** Frontend application URL for creating links in emails (optional until a frontend exists) */
   FRONTEND_URL: z.string().default(''),
 
+  /**
+   * One-time bootstrap secret required to create the first super-admin via
+   * `POST /super-admin/create`. Without a matching `x-bootstrap-secret` header the
+   * endpoint is closed, preventing an attacker from seizing the platform before the
+   * legitimate operator provisions the first account. REQUIRED in production.
+   */
+  SUPER_ADMIN_BOOTSTRAP_SECRET: z.string().default(''),
+
   /** Application version for update endpoints */
   APP_VERSION: z.string().default('1.0.0'),
 
@@ -142,6 +150,16 @@ const envSchema = z.object({
           code: 'custom',
           path: ['JWT_REFRESH_SECRET'],
           message: 'JWT_REFRESH_SECRET must differ from JWT_SECRET in production'
+        });
+      }
+
+      // The first super-admin must be created via a known secret in production so the
+      // public bootstrap endpoint cannot be claimed by whoever calls it first.
+      if (val.SUPER_ADMIN_BOOTSTRAP_SECRET.length < 16) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SUPER_ADMIN_BOOTSTRAP_SECRET'],
+          message: 'SUPER_ADMIN_BOOTSTRAP_SECRET must be set to a strong value (16+ chars) in production. Generate one with: openssl rand -hex 32'
         });
       }
     }

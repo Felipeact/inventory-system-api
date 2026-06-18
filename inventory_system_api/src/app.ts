@@ -11,6 +11,7 @@
 import express from 'express';
 import path from 'path';
 import cors from 'cors';
+import compression from 'compression';
 import { pinoHttp } from 'pino-http';
 import authRoutes from './modules/auth/auth.routes';
 import productRoutes from './modules/products/product.routes';
@@ -24,6 +25,8 @@ import superAdminRoutes from './modules/super-admin/super-admin.routes';
 import helmet from 'helmet';
 import { env, corsOrigins } from './config/env';
 import { logger } from './lib/logger';
+import { prisma } from './lib/prisma';
+import { AppError } from './core/app-error';
 import exportRoutes from './modules/export/export.routes';
 import truckStockRoutes from './modules/truck-stock/truck-stock.routes';
 
@@ -47,6 +50,9 @@ app.use(pinoHttp({
 
 /** Security middleware - sets HTTP headers to help protect the app from various attacks */
 app.use(helmet());
+
+/** Gzip/deflate response compression for JSON, CSV, PDF and XLSX export payloads */
+app.use(compression());
 
 /**
  * CORS middleware - allows requests from origins configured via the CORS_ORIGINS env var.
@@ -79,9 +85,27 @@ app.get('/', (req, res) => {
   res.send('Inventory System API');
 });
 
-/** Liveness/readiness probe for orchestrators (Docker, k8s, load balancers) */
+/**
+ * Liveness probe — confirms the process is up and responsive. Kept dependency-free so a
+ * transient database blip does not trigger container restarts (used by Docker/Railway).
+ */
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+/**
+ * Readiness probe — confirms the API can actually serve traffic by verifying database
+ * connectivity. Use this for load-balancer / k8s readiness checks. Returns 503 when the
+ * database is unreachable so traffic is routed away until it recovers.
+ */
+app.get('/ready', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ready', timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.error({ err }, 'Readiness check failed: database unreachable');
+    res.status(503).json({ status: 'unavailable', message: 'Database unreachable' });
+  }
 });
 
 app.get('/openapi.json', (req, res) => {
@@ -108,6 +132,11 @@ app.use('/reports', reportRoutes); // Report generation routes
 app.use('/exports', exportRoutes); // Data export routes
 app.use('/super-admin', superAdminRoutes); // Super admin management routes
 app.use('/truck-stock', truckStockRoutes);
+
+/** JSON 404 for unknown routes so the API never falls back to Express' default HTML page */
+app.use((req, res, next) => {
+  next(new AppError(`Route not found: ${req.method} ${req.originalUrl}`, 404));
+});
 
 /** Error handling middleware - must be last middleware */
 app.use(errorMiddleware);

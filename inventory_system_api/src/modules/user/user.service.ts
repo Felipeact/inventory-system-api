@@ -1,9 +1,19 @@
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { UserRepository } from './user.repository';
+import { prisma } from '../../lib/prisma';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { EmailService } from '../email/email.service';
 import { logger } from '../../lib/logger';
+
+/**
+ * Generate a cryptographically-strong temporary password (URL-safe).
+ * `Math.random()` is NOT suitable for secrets — it is predictable.
+ */
+function generateTemporaryPassword(): string {
+  return crypto.randomBytes(12).toString('base64url');
+}
 
 export class UserService {
 
@@ -63,7 +73,7 @@ export class UserService {
     }
 
     const passwordHash =
-      await bcrypt.hash(password, 10);
+      await bcrypt.hash(password, 12);
 
     const user = await this.repo.create({
       name: name ? String(name).trim() : '',
@@ -129,7 +139,7 @@ export class UserService {
       String(password).trim() !== ''
     ) {
       updateData.passwordHash =
-        await bcrypt.hash(password, 10);
+        await bcrypt.hash(password, 12);
     }
 
     if (roleName !== undefined) {
@@ -417,15 +427,12 @@ export class UserService {
       );
     }
 
-    const temporaryPassword =
-      Math.random()
-        .toString(36)
-        .slice(-8);
+    const temporaryPassword = generateTemporaryPassword();
 
     const passwordHash =
       await bcrypt.hash(
         temporaryPassword,
-        10
+        12
       );
 
     await this.repo.resetPassword(
@@ -433,6 +440,9 @@ export class UserService {
       companyId,
       passwordHash
     );
+
+    // Revoke existing sessions so the old credential cannot continue to be used.
+    await prisma.refreshToken.deleteMany({ where: { userId } });
 
     await this.audit.log(
       'RESET_PASSWORD',
