@@ -43,4 +43,20 @@ describe('app integration', () => {
     expect(res.body.success).toBe(false);
     expect(res.body.message).toContain('Route not found');
   });
+
+  it('rejects a lead submission missing required fields', async () => {
+    const res = await request(app)
+      .post('/leads')
+      .send({ firstName: 'Pat' }); // missing email + company
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  it('accepts a valid lead submission (email is best-effort)', async () => {
+    const res = await request(app)
+      .post('/leads')
+      .send({ firstName: 'Pat', email: 'pat@acme.test', company: 'Acme' });
+    expect(res.status).toBe(201);
+    expect(res.body).toHaveProperty('message');
+  });
 });

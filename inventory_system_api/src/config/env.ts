@@ -52,6 +52,13 @@ const envSchema = z.object({
   /** Email sender address */
   SMTP_FROM: z.string().default(''),
 
+  /**
+   * Address that receives operational/admin notifications (new company registrations,
+   * super-admin creation, demo/lead submissions). Defaults to the platform owner so
+   * notifications work out of the box once SMTP is configured. Override per deployment.
+   */
+  ADMIN_NOTIFICATION_EMAIL: z.string().default('felipetiburcioviana@gmail.com'),
+
   /** Frontend application URL for creating links in emails (optional until a frontend exists) */
   FRONTEND_URL: z.string().default(''),
 

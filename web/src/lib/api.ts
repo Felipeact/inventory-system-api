@@ -7,6 +7,8 @@
  *   token once on a 401 before retrying the original request.
  */
 import type {
+  ActivationCode,
+  AdminCompany,
   Asset,
   AuthResponse,
   InventoryReport,
@@ -24,6 +26,7 @@ export const API_BASE_URL =
 const ACCESS_KEY = "sp_access_token";
 const REFRESH_KEY = "sp_refresh_token";
 const USER_KEY = "sp_user";
+const SA_TOKEN_KEY = "sp_sa_token";
 
 export class ApiError extends Error {
   status: number;
@@ -60,6 +63,21 @@ export const tokenStore = {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
+  },
+};
+
+/**
+ * Super-admin token store. The super-admin JWT is separate from company-user
+ * tokens (different audience, 12h expiry, no refresh) so it is kept under its
+ * own key and never mixed into the regular Authorization flow.
+ */
+export const superAdminStore = {
+  token: () => (isBrowser() ? localStorage.getItem(SA_TOKEN_KEY) : null),
+  set(token: string) {
+    if (isBrowser()) localStorage.setItem(SA_TOKEN_KEY, token);
+  },
+  clear() {
+    if (isBrowser()) localStorage.removeItem(SA_TOKEN_KEY);
   },
 };
 
@@ -309,5 +327,112 @@ export const api = {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  },
+
+  // ---- Public lead / demo capture ----
+  async submitLead(input: Record<string, unknown>) {
+    return request<{ message: string }>("/leads", {
+      method: "POST",
+      body: input,
+      auth: false,
+    });
+  },
+};
+
+/**
+ * Authenticated request against the super-admin endpoints. Uses the separate
+ * super-admin token; on a 401 it clears the token so the caller can redirect to
+ * the super-admin login (there is no refresh flow for this short-lived token).
+ */
+async function saRequest<T>(
+  path: string,
+  opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
+): Promise<T> {
+  const { method = "GET", body, headers = {} } = opts;
+  const token = superAdminStore.token();
+  const res = await fetch(`${API_BASE_URL}/super-admin${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...headers,
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+
+  if (res.status === 401) {
+    superAdminStore.clear();
+  }
+
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      message = data?.message || data?.error || message;
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, message);
+  }
+
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+/** Super-admin platform-operator API (separate auth from company users). */
+export const superAdminApi = {
+  /** Bootstrap the very first super-admin. Requires the one-time bootstrap secret. */
+  async create(email: string, password: string, bootstrapSecret: string) {
+    return saRequest("/create", {
+      method: "POST",
+      body: { email, password },
+      headers: { "x-bootstrap-secret": bootstrapSecret },
+    });
+  },
+  async login(email: string, password: string) {
+    const data = await saRequest<{ token: string }>("/login", {
+      method: "POST",
+      body: { email, password },
+    });
+    superAdminStore.set(data.token);
+    return data;
+  },
+  logout() {
+    superAdminStore.clear();
+  },
+
+  // ---- Activation codes ----
+  async listCodes() {
+    return asArray<ActivationCode>(await saRequest("/activation-codes"), "codes");
+  },
+  async createCode(input: {
+    code: string;
+    plan: string;
+    maxUsers: number;
+    maxProducts: number;
+  }) {
+    return saRequest<ActivationCode>("/activation-codes", { method: "POST", body: input });
+  },
+  async deactivateCode(id: string) {
+    return saRequest(`/activation-codes/${id}/deactivate`, { method: "PATCH" });
+  },
+
+  // ---- Companies ----
+  async listCompanies() {
+    return asArray<AdminCompany>(await saRequest("/companies"), "companies");
+  },
+  async activateCompany(id: string) {
+    return saRequest(`/companies/${id}/activate`, { method: "PATCH" });
+  },
+  async deactivateCompany(id: string) {
+    return saRequest(`/companies/${id}/deactivate`, { method: "PATCH" });
+  },
+  async updateCompanyPlan(
+    id: string,
+    input: { plan: string; maxUsers: number; maxProducts: number },
+  ) {
+    return saRequest(`/companies/${id}/plan`, { method: "PATCH", body: input });
   },
 };

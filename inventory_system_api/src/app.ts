@@ -29,6 +29,7 @@ import { prisma } from './lib/prisma';
 import { AppError } from './core/app-error';
 import exportRoutes from './modules/export/export.routes';
 import truckStockRoutes from './modules/truck-stock/truck-stock.routes';
+import leadRoutes from './modules/lead/lead.routes';
 
 /** Initialize Express application instance */
 const app = express();
@@ -132,6 +133,7 @@ app.use('/reports', reportRoutes); // Report generation routes
 app.use('/exports', exportRoutes); // Data export routes
 app.use('/super-admin', superAdminRoutes); // Super admin management routes
 app.use('/truck-stock', truckStockRoutes);
+app.use('/leads', leadRoutes); // Public demo/contact request capture (emails the owner)
 
 /** JSON 404 for unknown routes so the API never falls back to Express' default HTML page */
 app.use((req, res, next) => {

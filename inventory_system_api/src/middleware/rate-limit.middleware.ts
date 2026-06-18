@@ -52,3 +52,26 @@ export const authRateLimiter = rateLimit({
     message: 'Too many login attempts. Please try again later.'
   }
 });
+
+/**
+ * Rate limiter for the public lead / demo-request endpoint.
+ * Limits: 8 submissions per hour per IP address to curb form spam while staying
+ * comfortably above any legitimate single user.
+ *
+ * @type {RequestHandler}
+ */
+export const leadRateLimiter = rateLimit({
+  /** Time window in milliseconds (1 hour) */
+  windowMs: 60 * 60 * 1000,
+  /** Max submissions allowed per window */
+  limit: 8,
+  /** Include rate limit headers in response */
+  standardHeaders: true,
+  /** Don't send legacy rate limit headers */
+  legacyHeaders: false,
+  /** Custom error message for lead rate limit exceeded */
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.'
+  }
+});

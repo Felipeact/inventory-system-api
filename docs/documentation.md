@@ -117,9 +117,11 @@ required variable is missing or (in production) weak.
 | `SUPER_ADMIN_BOOTSTRAP_SECRET` | ✅ (prod) | One-time secret to create the first super-admin |
 | `PORT` | — | Default `3000` |
 | `NODE_ENV` | — | `development` \| `test` \| `production` |
-| `CORS_ORIGINS` | — | Comma-separated allowed origins |
+| `CORS_ORIGINS` | — | Comma-separated allowed origins. **Must include the web app's origin** |
 | `STORAGE_DRIVER` | — | `local` \| `s3` (S3 vars required when `s3`) |
-| `SMTP_*` | — | Optional; email flows become no-ops if unset |
+| `SMTP_*` | — | Optional; email flows become no-ops if unset (see §2.10) |
+| `ADMIN_NOTIFICATION_EMAIL` | — | Recipient for sign-up / lead / super-admin notifications |
+| `SEED_*` | — | Optional; values for the `npm run seed` bootstrap (see §2.9) |
 
 ## 2.5 Install, build & run
 
@@ -185,7 +187,41 @@ with `healthcheckPath: /health`. Set the environment variables in the Railway da
 
 ## 2.9 First-run onboarding
 
-A fresh database has no accounts. Bootstrap the platform in three steps:
+A fresh database has no accounts, and **registration requires an activation code** — so
+the very first thing to do is mint one. There are three ways, easiest first.
+
+### Option A — Web operator console (recommended)
+
+The web front-end ships a built-in super-admin console. No curl required.
+
+1. Open `https://<your-web-app>/admin/setup`.
+2. Enter an email, a password, and the `SUPER_ADMIN_BOOTSTRAP_SECRET` you set on the API.
+   (This works only once; the endpoint closes after the first super-admin exists.)
+3. You land on `/admin`. Click **Create an activation code** (a random code is
+   pre-filled). Pick a plan and limits, and create it.
+4. Go to `/register`, enter a company name, email, password, and that activation code.
+   You now have a test account and are signed into the dashboard.
+
+The console also lists every activation code and registered company, and lets you
+disable codes or activate/deactivate tenants.
+
+### Option B — Seed script (one command)
+
+The repo ships an **idempotent** seed that creates the first super-admin *and* a sample
+activation code. Run it once after migrations (locally, or via a Railway one-off shell):
+
+```bash
+npm run seed
+# ✔ Super-admin created: admin@inventory.local  (default password ChangeMe!2026)
+# ✔ Activation code created: TEST-2026 (plan PRO, 25 users, 5000 products)
+```
+
+Override any value with `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`,
+`SEED_ACTIVATION_CODE`, `SEED_ACTIVATION_PLAN`, `SEED_ACTIVATION_MAX_USERS`,
+`SEED_ACTIVATION_MAX_PRODUCTS`. Re-running never duplicates or overwrites existing rows.
+Then register at `/register` with the code (default `TEST-2026`).
+
+### Option C — Raw API (curl)
 
 ```bash
 API=https://your-api-host
@@ -208,9 +244,42 @@ curl -X POST "$API/super-admin/activation-codes" \
   -d '{"code":"WELCOME2026","plan":"PRO","maxUsers":25,"maxProducts":5000}'
 ```
 
-A company admin then self-registers with the activation code via the web app's
-**Register** page (or `POST /auth/register`), which creates the company, default roles
-(`ADMIN`/`WAREHOUSE`/`TECHNICIAN`), seeds permissions, and the first admin user.
+In every case, registration creates the company, default roles
+(`ADMIN`/`WAREHOUSE`/`TECHNICIAN`), seeded permissions, and the first admin user, then
+returns access + refresh tokens.
+
+## 2.10 Email & notifications
+
+Transactional email and operational notifications are sent over SMTP. **Email is
+optional**: if SMTP is unconfigured, these flows log a warning and become no-ops — they
+never crash a request.
+
+| Trigger | Recipient | Email |
+|---------|-----------|-------|
+| Company registers | New admin user | Welcome email |
+| Company registers | `ADMIN_NOTIFICATION_EMAIL` | "New company registered" |
+| Super-admin created | `ADMIN_NOTIFICATION_EMAIL` | "Super-admin account created" |
+| Demo/contact form (`POST /leads`) | `ADMIN_NOTIFICATION_EMAIL` | "New demo / contact request" |
+| Password reset requested | The user | Reset link (30-min expiry) |
+| User invited (admin) | The invitee | Temporary password |
+
+**Gmail setup (single mailbox):**
+
+1. Enable **2-Step Verification** on the Google account.
+2. Create an **App password** (Google Account → Security → App passwords) — a 16-char code.
+3. Set these on the API host (Railway → Variables):
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=felipetiburcioviana@gmail.com
+SMTP_PASS=<16-char app password>      # NOT your normal Google password
+SMTP_FROM=Inventory System <felipetiburcioviana@gmail.com>
+ADMIN_NOTIFICATION_EMAIL=felipetiburcioviana@gmail.com
+FRONTEND_URL=https://<your-web-app>   # used for reset-password links
+```
+
+Restart the API; sign-ups, leads, and super-admin creation now arrive in your inbox.
 
 ---
 
@@ -236,7 +305,12 @@ Router).
 | Marketing | `/`, `/features`, `/pricing`, `/request-demo` |
 | Auth | `/login`, `/register`, `/forgot-password` |
 | App (guarded) | `/dashboard`, `/products`, `/assets`, `/trucks`, `/reports`, `/settings` |
+| Operator (super-admin) | `/admin/setup`, `/admin/login`, `/admin` (activation codes + tenants) |
 | Generated | `/robots.txt`, `/sitemap.xml`, `/icon.svg`, `/_not-found` |
+
+> The `/admin/*` console uses a separate super-admin token (stored under its own key,
+> 12-hour expiry, `noindex`). It is how operators mint activation codes and manage
+> tenants — see §2.9.
 
 ## 3.3 Prerequisites
 
@@ -577,14 +651,13 @@ These require your secrets, hardware, or toolchains, or are larger changes best 
 full QA. They are documented here as the next steps toward a hardened release.
 
 > **Back-End** — Add service-level / RBAC / tenant-isolation tests with coverage thresholds;
-> add Zod schemas to the `/truck-stock` routes; add a deterministic Prisma seed for the
-> first super-admin; pin the Node base image by digest; note that `xlsx@0.18.5` carries
-> registry advisories (track the vendor build).
+> add Zod schemas to the `/truck-stock` routes; pin the Node base image by digest; note that
+> `xlsx@0.18.5` carries registry advisories (track the vendor build). *(A deterministic
+> Prisma seed for the first super-admin + sample activation code now ships — see §2.9.)*
 
 > **Web** — Move JWTs (especially the refresh token) out of `localStorage` into `httpOnly`
 > cookies via a small BFF/route-handler to remove the XSS token-theft vector, then enforce
-> auth in `middleware.ts` (server-side) instead of the client-only guard; wire the
-> "request a demo" form to a real endpoint.
+> auth in `middleware.ts` (server-side) instead of the client-only guard.
 
 > **Mobile** — Generate and commit launcher icons (`dart run flutter_launcher_icons`);
 > create and configure the iOS Xcode project + signing; integrate crash reporting
@@ -597,6 +670,21 @@ full QA. They are documented here as the next steps toward a hardened release.
 > size is checked — a remaining RCE risk); code-sign the installer and the executable for
 > SmartScreen/UAC trust; reconcile or delete the stale root `InventoryQtApp.vcxproj`.
 
+## 6.4 Account onboarding & notifications (this pass)
+
+| Area | Change |
+|------|--------|
+| Self-serve onboarding | Added a web **super-admin console** (`/admin/setup`, `/admin/login`, `/admin`) to bootstrap the first operator, mint/disable activation codes, and activate/deactivate tenants — no curl required |
+| Seed | Added an **idempotent** `npm run seed` that creates the first super-admin + a sample activation code (env-overridable; safe to re-run) |
+| Welcome email | Registration now sends a welcome email to the new admin (previously dead code) |
+| Owner notifications | New emails to `ADMIN_NOTIFICATION_EMAIL` on company sign-up, super-admin creation, and demo/lead submissions |
+| Lead capture | Added a public, rate-limited `POST /leads` endpoint; the marketing **request-a-demo** form now posts to it (was a simulated no-op) and emails the owner |
+| Email hardening | All email bodies HTML-escape user input; SMTP failures are caught/logged so they never break a request; consistent branded template |
+| Web config | `NEXT_PUBLIC_API_BASE_URL` example points at the live API; documented the matching `CORS_ORIGINS` requirement |
+
+*Verification: back-end `typecheck` + 26 tests pass; web `lint` + `typecheck` + production
+`build` pass.*
+
 ---
 
 # 7. Quick Command Reference
@@ -605,6 +693,7 @@ full QA. They are documented here as the next steps toward a hardened release.
 # ── Back-End API ──
 cd inventory-system-api/inventory_system_api
 npm ci && npm run generate && npm run migrate:deploy
+npm run seed                                 # bootstrap first super-admin + sample code
 npm run dev                                  # development
 npm run build && npm start                   # production
 npm run typecheck && npm test                # checks

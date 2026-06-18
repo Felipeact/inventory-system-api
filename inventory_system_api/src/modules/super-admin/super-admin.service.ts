@@ -4,6 +4,7 @@ import { SuperAdminRepository } from './super-admin.repository';
 import { AppError } from '../../core/app-error';
 import { generateSuperAdminToken } from '../../utils/jwt';
 import { env } from '../../config/env';
+import { EmailService } from '../email/email.service';
 
 /** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
 const BCRYPT_ROUNDS = 12;
@@ -19,6 +20,7 @@ function secretsMatch(provided: string, expected: string): boolean {
 
 export class SuperAdminService {
     private repo = new SuperAdminRepository();
+    private emailService = new EmailService();
 
     async createSuperAdmin(dto: any, bootstrapSecret?: string) {
         const { email, password } = dto;
@@ -54,10 +56,15 @@ export class SuperAdminService {
 
         const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-        return this.repo.create({
+        const created = await this.repo.create({
             email,
             passwordHash
         });
+
+        // Best-effort: alert the platform owner that the first super-admin now exists.
+        void this.emailService.notifyNewSuperAdmin(email);
+
+        return created;
     }
 
     async createActivationCode(dto: any) {

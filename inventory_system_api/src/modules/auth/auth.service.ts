@@ -81,6 +81,16 @@ export class AuthService {
       `Registered company ${company.name} with ${company.plan} plan`
     );
 
+    // Best-effort email: welcome the new admin and notify the platform owner.
+    // These never throw (the email service swallows failures), but we still
+    // detach them so SMTP latency doesn't delay the registration response.
+    void this.emailService.sendWelcomeEmail(user.email, company.name);
+    void this.emailService.notifyNewRegistration({
+      companyName: company.name,
+      email: user.email,
+      plan: company.plan
+    });
+
     return {
       accessToken,
       refreshToken,

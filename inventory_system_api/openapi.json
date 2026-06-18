@@ -35,6 +35,70 @@
         }
       }
     },
+    "/auth/register": {
+      "post": {
+        "summary": "Register a company + first admin using an activation code",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Company created; returns access/refresh tokens and user"
+          },
+          "401": {
+            "description": "Invalid activation code"
+          }
+        }
+      }
+    },
+    "/leads": {
+      "post": {
+        "summary": "Public demo/contact request (emails the platform owner)",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Request received"
+          },
+          "400": {
+            "description": "Missing required fields"
+          },
+          "429": {
+            "description": "Too many requests"
+          }
+        }
+      }
+    },
+    "/super-admin/create": {
+      "post": {
+        "summary": "Bootstrap the first super-admin (requires x-bootstrap-secret header)",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Super-admin created"
+          },
+          "403": {
+            "description": "Invalid or missing bootstrap secret, or one already exists"
+          }
+        }
+      }
+    },
+    "/super-admin/login": {
+      "post": {
+        "summary": "Super-admin login",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Returns a super-admin token"
+          }
+        }
+      }
+    },
+    "/super-admin/activation-codes": {
+      "get": {
+        "summary": "List activation codes (super-admin token)"
+      },
+      "post": {
+        "summary": "Create an activation code (super-admin token)"
+      }
+    },
     "/auth/change-password": {
       "post": {
         "summary": "Change current user password",

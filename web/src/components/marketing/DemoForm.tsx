@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { BRAND } from "@/lib/brand";
+import { api, ApiError } from "@/lib/api";
 
 const COMPANY_SIZES = ["1–10", "11–50", "51–200", "201–500", "500+"];
 const TRADES = [
@@ -33,15 +34,16 @@ export function DemoForm({ defaultPlan }: { defaultPlan?: string }) {
 
     setStatus("submitting");
     try {
-      // No public demo-intake endpoint exists on the API, so we simulate the
-      // submission. Wire this to your CRM / a /leads endpoint when available.
-      await new Promise((r) => setTimeout(r, 900));
-      // eslint-disable-next-line no-console
-      console.info("Demo request:", data);
+      // Posts to the API's public /leads endpoint, which emails the platform owner.
+      await api.submitLead(data);
       setStatus("done");
-    } catch {
+    } catch (err) {
       setStatus("idle");
-      setError("Something went wrong. Please email " + BRAND.salesEmail);
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Something went wrong. Please email " + BRAND.salesEmail,
+      );
     }
   }
 

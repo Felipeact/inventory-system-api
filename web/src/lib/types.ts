@@ -91,6 +91,31 @@ export interface InventoryReport {
   [key: string]: unknown;
 }
 
+/** Super-admin: a tenant company as returned by /super-admin/companies. */
+export interface AdminCompany {
+  id: string;
+  name: string;
+  plan: string;
+  subscriptionStatus: string;
+  maxUsers: number;
+  maxProducts: number;
+  createdAt?: string;
+  users?: { id: string; email: string }[];
+  products?: { id: string }[];
+}
+
+/** Super-admin: an activation code as returned by /super-admin/activation-codes. */
+export interface ActivationCode {
+  id: string;
+  code: string;
+  plan: string;
+  maxUsers: number;
+  maxProducts: number;
+  isUsed: boolean;
+  isActive: boolean;
+  companyId?: string | null;
+}
+
 /** Helper to read a product's quantity regardless of API shape. */
 export function productQuantity(p: Product): number {
   if (typeof p.quantity === "number") return p.quantity;
