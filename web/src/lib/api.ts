@@ -19,9 +19,23 @@ import type {
   TruckStockTemplate,
 } from "./types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
-  "http://localhost:3000";
+/** The live API to fall back to when no valid override is configured. */
+const DEFAULT_API_BASE_URL =
+  "https://inventory-system-api-production.up.railway.app";
+
+/**
+ * Resolve the API base URL from the environment, defending against the common
+ * failure modes: unset, empty, a stray trailing slash, or the literal strings
+ * "undefined"/"null" that leak in from misconfigured .env files or shells.
+ * Falls back to the production API so the app works with zero configuration.
+ */
+function resolveApiBaseUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  if (!raw || raw === "undefined" || raw === "null") return DEFAULT_API_BASE_URL;
+  return raw.replace(/\/$/, "");
+}
+
+export const API_BASE_URL = resolveApiBaseUrl();
 
 const ACCESS_KEY = "sp_access_token";
 const REFRESH_KEY = "sp_refresh_token";

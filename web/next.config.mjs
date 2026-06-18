@@ -1,29 +1,30 @@
-import { PHASE_PRODUCTION_BUILD, PHASE_DEVELOPMENT_SERVER } from "next/constants.js";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants.js";
 
 /**
  * Phase-aware Next config.
  *
- * The browser bundle talks to the API at NEXT_PUBLIC_API_BASE_URL. We fail the *production
- * build* when it is missing rather than silently shipping a bundle pointed at localhost —
- * but we do not block `next lint` / `next dev`, which also load this config.
+ * The browser bundle talks to the API at NEXT_PUBLIC_API_BASE_URL. When that is unset or
+ * invalid we fall back to the live production API (see DEFAULT_API_BASE_URL) so the app
+ * works with zero configuration rather than silently pointing at localhost.
  *
  * @param {string} phase
  * @returns {import('next').NextConfig}
  */
 export default function nextConfig(phase) {
-  const isBuild = phase === PHASE_PRODUCTION_BUILD;
   const isDev = phase === PHASE_DEVELOPMENT_SERVER;
-  // `next lint` also loads the config under the build phase; don't block linting on env.
-  const isLint = process.env.npm_lifecycle_event === "lint";
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
-  if (isBuild && !isLint && !apiBaseUrl) {
-    throw new Error(
-      "NEXT_PUBLIC_API_BASE_URL is required for a production build. " +
-        "Set it to your API origin (e.g. https://api.example.com) before running `next build`.",
-    );
-  }
-  const apiOrigin = apiBaseUrl ?? "http://localhost:3000";
+  /**
+   * Resolve the API origin used for CSP `connect-src` and image optimization.
+   * Defends against unset/empty/"undefined"/"null" env values and falls back to
+   * the live API, so a missing or garbled .env never breaks the build, throws on
+   * `new URL(...)`, or points the bundle at the wrong host.
+   */
+  const DEFAULT_API_BASE_URL = "https://inventory-system-api-production.up.railway.app";
+  const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+  const apiOrigin =
+    !rawApiBaseUrl || rawApiBaseUrl === "undefined" || rawApiBaseUrl === "null"
+      ? DEFAULT_API_BASE_URL
+      : rawApiBaseUrl.replace(/\/$/, "");
 
   /**
    * Content-Security-Policy. `'unsafe-inline'` is required because Next.js injects inline
@@ -61,10 +62,8 @@ export default function nextConfig(phase) {
     // Emit a self-contained server bundle for slim container/Node deploys.
     output: "standalone",
     images: {
-      // Only optimize images served over HTTPS from the configured API host.
-      remotePatterns: apiBaseUrl
-        ? [{ protocol: "https", hostname: new URL(apiOrigin).hostname }]
-        : [{ protocol: "https", hostname: "**" }],
+      // Only optimize images served over HTTPS from the resolved API host.
+      remotePatterns: [{ protocol: "https", hostname: new URL(apiOrigin).hostname }],
     },
     async headers() {
       return [{ source: "/:path*", headers: securityHeaders }];
