@@ -28,7 +28,7 @@ required variable is missing or weak.
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
 | `JWT_SECRET` | ✅ | 32+ random chars (`openssl rand -hex 32`) |
 | `JWT_REFRESH_SECRET` | ✅ | Different 32+ random chars |
-| `SUPER_ADMIN_BOOTSTRAP_SECRET` | ✅ | 16+ chars; needed to create the first operator |
+| `SUPER_ADMIN_BOOTSTRAP_SECRET` | — | Optional. Set it (16+ chars) to use the `/admin/setup` web bootstrap; leave it blank and use `npm run seed` instead |
 | `CORS_ORIGINS` | ✅ (prod) | Must include your `WEB` origin, comma-separated |
 | `NODE_ENV` | — | `production` on Railway |
 | `SMTP_HOST/PORT/USER/PASS/FROM` | — | Required only to actually send email (§9) |

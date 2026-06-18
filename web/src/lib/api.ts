@@ -37,6 +37,15 @@ export class ApiError extends Error {
   }
 }
 
+/** Actionable message for a fetch that never reached the API (down / wrong URL / CORS). */
+function networkErrorMessage() {
+  return (
+    `Couldn't reach the API at ${API_BASE_URL}. Check that the API is running, ` +
+    `that NEXT_PUBLIC_API_BASE_URL is correct, and that the API's CORS_ORIGINS ` +
+    `includes this site's URL.`
+  );
+}
+
 function isBrowser() {
   return typeof window !== "undefined";
 }
@@ -97,12 +106,19 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    // A thrown fetch means the request never reached the API: the API is down,
+    // NEXT_PUBLIC_API_BASE_URL is wrong, or CORS_ORIGINS doesn't allow this site.
+    throw new ApiError(0, networkErrorMessage());
+  }
 
   // Transparent single refresh on expiry.
   if (res.status === 401 && auth && retry) {
@@ -350,16 +366,22 @@ async function saRequest<T>(
 ): Promise<T> {
   const { method = "GET", body, headers = {} } = opts;
   const token = superAdminStore.token();
-  const res = await fetch(`${API_BASE_URL}/super-admin${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE_URL}/super-admin${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+      cache: "no-store",
+    });
+  } catch {
+    // Never reached the API: it's down, the URL is wrong, or CORS blocked it.
+    throw new ApiError(0, networkErrorMessage());
+  }
 
   if (res.status === 401) {
     superAdminStore.clear();

@@ -114,7 +114,7 @@ required variable is missing or (in production) weak.
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
 | `JWT_SECRET` | ✅ | `openssl rand -hex 32`; must be strong in prod |
 | `JWT_REFRESH_SECRET` | ✅ | Distinct from `JWT_SECRET` in prod |
-| `SUPER_ADMIN_BOOTSTRAP_SECRET` | ✅ (prod) | One-time secret to create the first super-admin |
+| `SUPER_ADMIN_BOOTSTRAP_SECRET` | — | Optional; gates the web/HTTP bootstrap of the first super-admin. If blank, that endpoint is disabled in prod and you use `npm run seed`. Strong (16+ chars) when set |
 | `PORT` | — | Default `3000` |
 | `NODE_ENV` | — | `development` \| `test` \| `production` |
 | `CORS_ORIGINS` | — | Comma-separated allowed origins. **Must include the web app's origin** |

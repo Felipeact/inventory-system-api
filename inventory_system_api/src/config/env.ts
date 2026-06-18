@@ -160,13 +160,17 @@ const envSchema = z.object({
         });
       }
 
-      // The first super-admin must be created via a known secret in production so the
-      // public bootstrap endpoint cannot be claimed by whoever calls it first.
-      if (val.SUPER_ADMIN_BOOTSTRAP_SECRET.length < 16) {
+      // The bootstrap secret is OPTIONAL. It only gates the public
+      // POST /super-admin/create endpoint. When it is set in production it must be
+      // strong (16+ chars). When it is absent, that HTTP endpoint is disabled (see
+      // super-admin.service.ts) and the first super-admin is created via `npm run
+      // seed`, which writes to the database directly. The API must never fail to
+      // boot just because this secret is missing.
+      if (val.SUPER_ADMIN_BOOTSTRAP_SECRET && val.SUPER_ADMIN_BOOTSTRAP_SECRET.length < 16) {
         ctx.addIssue({
           code: 'custom',
           path: ['SUPER_ADMIN_BOOTSTRAP_SECRET'],
-          message: 'SUPER_ADMIN_BOOTSTRAP_SECRET must be set to a strong value (16+ chars) in production. Generate one with: openssl rand -hex 32'
+          message: 'SUPER_ADMIN_BOOTSTRAP_SECRET, when set, must be a strong value (16+ chars) in production. Generate one with: openssl rand -hex 32'
         });
       }
     }
