@@ -263,11 +263,36 @@ never crash a request.
 | Password reset requested | The user | Reset link (30-min expiry) |
 | User invited (admin) | The invitee | Temporary password |
 
-**Gmail setup (single mailbox):**
+The provider is chosen automatically: if `RESEND_API_KEY` is set, email goes over Resend's
+HTTPS API; otherwise the `SMTP_*` settings are used. Sends are time-boxed (~10s) and never
+block the originating request.
+
+> **Railway note:** many PaaS providers (Railway included) **block outbound SMTP ports**,
+> which makes Gmail/SMTP hang or time out. If your emails don't arrive and the logs show an
+> SMTP timeout, use **Resend** below — it sends over HTTPS (port 443) and is not affected.
+
+**Option 1 — Resend (recommended on Railway):**
+
+1. Create a free account at [resend.com](https://resend.com) using `felipetiburcioviana@gmail.com`.
+2. Create an **API key**.
+3. Set on the API host (Railway → Variables):
+
+```bash
+RESEND_API_KEY=re_xxxxxxxx
+RESEND_FROM=onboarding@resend.dev        # works in test mode without a verified domain
+ADMIN_NOTIFICATION_EMAIL=felipetiburcioviana@gmail.com
+FRONTEND_URL=https://<your-web-app>
+```
+
+In test mode (no verified domain) Resend delivers from the shared onboarding sender **to the
+address you signed up with** — exactly what's needed for owner notifications. To email
+arbitrary users (e.g. welcome emails), verify a domain in Resend and set `RESEND_FROM` to it.
+
+**Option 2 — Gmail SMTP (works only where outbound SMTP is allowed):**
 
 1. Enable **2-Step Verification** on the Google account.
 2. Create an **App password** (Google Account → Security → App passwords) — a 16-char code.
-3. Set these on the API host (Railway → Variables):
+3. Set on the API host:
 
 ```bash
 SMTP_HOST=smtp.gmail.com

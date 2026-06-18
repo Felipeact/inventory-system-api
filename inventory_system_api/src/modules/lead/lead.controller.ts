@@ -25,10 +25,12 @@ export class LeadController extends BaseController {
       if (body[key] !== undefined) lead[key] = body[key];
     }
 
-    // Always log so a lead is never lost even if SMTP is down or unconfigured.
+    // Always log so a lead is never lost even if email is down or unconfigured.
     logger.info({ email: lead.email, company: lead.company }, 'New demo/contact request');
 
-    await this.email.notifyNewLead(lead);
+    // Fire-and-forget: never block the HTTP response on email delivery. The email
+    // service catches its own failures, so this can't reject.
+    void this.email.notifyNewLead(lead);
 
     return this.created(res, {
       message: "Thanks — we've received your request and will be in touch shortly."

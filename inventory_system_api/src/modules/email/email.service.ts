@@ -12,7 +12,7 @@
  */
 
 import nodemailer, { Transporter } from 'nodemailer';
-import { env, emailEnabled } from '../../config/env';
+import { env, emailEnabled, resendEnabled } from '../../config/env';
 import { logger } from '../../lib/logger';
 
 /** Minimal HTML escaping so user-supplied values can't inject markup into emails. */
@@ -54,32 +54,81 @@ export class EmailService {
         auth: {
           user: env.SMTP_USER,
           pass: env.SMTP_PASS
-        }
+        },
+        // Fail fast instead of hanging for minutes when the SMTP port is blocked
+        // (common on PaaS like Railway) or the server is unreachable.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000
       })
     : null;
 
   /**
-   * Send an email if SMTP is configured; otherwise log and skip.
-   * Delivery failures are caught and logged so a flaky mail server never breaks the
-   * surrounding request (registration, lead capture, password reset, …).
+   * Send an email via the configured provider. Resend (HTTPS API) is preferred when
+   * configured because it works on hosts that block outbound SMTP; otherwise SMTP is
+   * used. If neither is configured, the call logs and skips.
+   *
+   * Delivery failures are always caught and logged so a flaky mail server never breaks
+   * the surrounding request (registration, lead capture, password reset, …).
    * @returns true if the email was dispatched, false if email is disabled or failed.
    */
   private async send(options: nodemailer.SendMailOptions): Promise<boolean> {
-    if (!this.transporter) {
-      logger.warn(
-        { to: options.to, subject: options.subject },
-        'Email not sent: SMTP is not configured (set SMTP_* env vars to enable)'
-      );
-      return false;
+    if (resendEnabled) {
+      return this.sendViaResend(options);
     }
 
+    if (this.transporter) {
+      try {
+        await this.transporter.sendMail({ from: env.SMTP_FROM, ...options });
+        return true;
+      } catch (err) {
+        logger.error(
+          { err, to: options.to, subject: options.subject },
+          'Email delivery failed (SMTP)'
+        );
+        return false;
+      }
+    }
+
+    logger.warn(
+      { to: options.to, subject: options.subject },
+      'Email not sent: no provider configured (set RESEND_API_KEY or the SMTP_* vars)'
+    );
+    return false;
+  }
+
+  /** Send via Resend's HTTPS API (https://resend.com/docs). */
+  private async sendViaResend(options: nodemailer.SendMailOptions): Promise<boolean> {
     try {
-      await this.transporter.sendMail({ from: env.SMTP_FROM, ...options });
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: env.RESEND_FROM,
+          to: options.to,
+          subject: options.subject,
+          html: options.html
+        }),
+        // Don't let a slow provider hang the request.
+        signal: AbortSignal.timeout(10_000)
+      });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        logger.error(
+          { status: res.status, body, to: options.to, subject: options.subject },
+          'Email delivery failed (Resend)'
+        );
+        return false;
+      }
       return true;
     } catch (err) {
       logger.error(
         { err, to: options.to, subject: options.subject },
-        'Email delivery failed'
+        'Email delivery failed (Resend)'
       );
       return false;
     }

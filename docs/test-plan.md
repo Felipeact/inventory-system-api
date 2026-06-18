@@ -31,7 +31,7 @@ required variable is missing or weak.
 | `SUPER_ADMIN_BOOTSTRAP_SECRET` | — | Optional. Set it (16+ chars) to use the `/admin/setup` web bootstrap; leave it blank and use `npm run seed` instead |
 | `CORS_ORIGINS` | ✅ (prod) | Must include your `WEB` origin, comma-separated |
 | `NODE_ENV` | — | `production` on Railway |
-| `SMTP_HOST/PORT/USER/PASS/FROM` | — | Required only to actually send email (§9) |
+| `RESEND_API_KEY` *or* `SMTP_*` | — | One email provider to actually send email (§9). Resend recommended on Railway |
 | `ADMIN_NOTIFICATION_EMAIL` | — | Where sign-up/lead alerts go |
 | `FRONTEND_URL` | — | Used in password-reset links |
 
@@ -227,8 +227,13 @@ tenant's data).
 
 # 9. Email & notifications
 
-Requires SMTP configured (§2.1). Inbox to watch: `ADMIN_NOTIFICATION_EMAIL`
-(`felipetiburcioviana@gmail.com`).
+Requires an email provider configured (§2.1): `RESEND_API_KEY` (recommended on Railway, as
+Railway blocks outbound SMTP) **or** the `SMTP_*` vars. Inbox to watch:
+`ADMIN_NOTIFICATION_EMAIL` (`felipetiburcioviana@gmail.com`).
+
+> Submissions never hang on email — the API responds immediately and sends in the
+> background. If an email doesn't arrive, check the API logs for `Email delivery failed`
+> (Resend/SMTP) or `Email not sent: no provider configured`.
 
 `▢` **9.1** Registering a company (§5) → a **"New company registered"** email arrives at
 the admin inbox, and a **welcome** email arrives at the new user's address.

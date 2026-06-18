@@ -53,9 +53,19 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default(''),
 
   /**
+   * Resend API key (https://resend.com). When set, email is sent over Resend's
+   * HTTPS API instead of SMTP — useful on hosts that block outbound SMTP ports
+   * (e.g. Railway). Takes precedence over SMTP when present.
+   */
+  RESEND_API_KEY: z.string().default(''),
+
+  /** From address for Resend. Defaults to Resend's shared onboarding sender. */
+  RESEND_FROM: z.string().default('onboarding@resend.dev'),
+
+  /**
    * Address that receives operational/admin notifications (new company registrations,
    * super-admin creation, demo/lead submissions). Defaults to the platform owner so
-   * notifications work out of the box once SMTP is configured. Override per deployment.
+   * notifications work out of the box once email is configured. Override per deployment.
    */
   ADMIN_NOTIFICATION_EMAIL: z.string().default('felipetiburcioviana@gmail.com'),
 
@@ -201,3 +211,6 @@ export const corsOrigins = env.CORS_ORIGINS.split(',')
 export const emailEnabled = Boolean(
   env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASS && env.SMTP_FROM
 );
+
+/** Whether the Resend HTTPS email provider is configured (preferred over SMTP). */
+export const resendEnabled = Boolean(env.RESEND_API_KEY);
