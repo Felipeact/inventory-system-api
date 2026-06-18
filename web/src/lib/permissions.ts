@@ -1,0 +1,39 @@
+/**
+ * Permission and role constants mirroring the backend
+ * (inventory_system_api/src/constants/permissions.ts). Used to gate UI by the
+ * `permissions` array returned on login.
+ */
+
+export const PERMISSIONS = {
+  // Products
+  ADD_PRODUCT: "ADD_PRODUCT",
+  VIEW_STOCK: "VIEW_STOCK",
+  SCAN_IN: "SCAN_IN",
+  SCAN_OUT: "SCAN_OUT",
+  // Users
+  MANAGE_USERS: "MANAGE_USERS",
+  // Assets
+  ADD_ASSET: "ADD_ASSET",
+  VIEW_ASSET: "VIEW_ASSET",
+  EDIT_ASSET: "EDIT_ASSET",
+  DELETE_ASSET: "DELETE_ASSET",
+  // Truck stock
+  VIEW_ASSIGNED_TRUCK_STOCK: "VIEW_ASSIGNED_TRUCK_STOCK",
+  UPLOAD_RECEIPT: "UPLOAD_RECEIPT",
+  VIEW_LOW_STOCK_ALERTS: "VIEW_LOW_STOCK_ALERTS",
+  MANAGE_TRUCK_STOCK: "MANAGE_TRUCK_STOCK",
+  ASSIGN_TRUCK_STOCK: "ASSIGN_TRUCK_STOCK",
+  APPROVE_RECEIPTS: "APPROVE_RECEIPTS",
+  VIEW_ALL_TRUCKS: "VIEW_ALL_TRUCKS",
+  VIEW_TRUCK_STOCK: "VIEW_TRUCK_STOCK",
+  TRANSFER_STOCK_TO_TRUCK: "TRANSFER_STOCK_TO_TRUCK",
+} as const;
+
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+/** The default roles seeded for every company. */
+export const ROLES = {
+  ADMIN: "ADMIN",
+  WAREHOUSE: "WAREHOUSE",
+  TECHNICIAN: "TECHNICIAN",
+} as const;

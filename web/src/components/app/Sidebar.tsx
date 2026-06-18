@@ -9,17 +9,44 @@ import {
   Truck,
   BarChart3,
   Settings,
+  Users,
+  PackageCheck,
+  ReceiptText,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 
-const NAV = [
+interface NavItem {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  /** If set, the item is shown only when the user has this permission. */
+  perm?: string;
+}
+
+const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Products", href: "/products", icon: Boxes },
-  { label: "Assets", href: "/assets", icon: HardHat },
-  { label: "Trucks", href: "/trucks", icon: Truck },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Products", href: "/products", icon: Boxes, perm: PERMISSIONS.VIEW_STOCK },
+  { label: "Assets", href: "/assets", icon: HardHat, perm: PERMISSIONS.VIEW_ASSET },
+  { label: "Fleet", href: "/trucks", icon: Truck, perm: PERMISSIONS.VIEW_TRUCK_STOCK },
+  {
+    label: "My Truck",
+    href: "/my-truck",
+    icon: PackageCheck,
+    perm: PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK,
+  },
+  {
+    label: "Receipts",
+    href: "/receipts",
+    icon: ReceiptText,
+    perm: PERMISSIONS.APPROVE_RECEIPTS,
+  },
+  { label: "Reports", href: "/reports", icon: BarChart3, perm: PERMISSIONS.VIEW_STOCK },
+  { label: "Team", href: "/users", icon: Users, perm: PERMISSIONS.MANAGE_USERS },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -31,6 +58,9 @@ export function Sidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const { hasPermission } = useAuth();
+
+  const items = NAV.filter((item) => !item.perm || hasPermission(item.perm));
 
   return (
     <>
@@ -57,7 +87,7 @@ export function Sidebar({
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-          {NAV.map((item) => {
+          {items.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(item.href + "/");
             return (

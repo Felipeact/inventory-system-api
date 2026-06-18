@@ -61,7 +61,12 @@ export class AuthRepository {
     return prisma.user.findFirst({
       where: { email },
       include: {
-        role: true,
+        role: {
+          include: {
+            rolePermissions: { include: { permission: true } },
+          },
+        },
+        userPermissions: { include: { permission: true } },
       },
     });
   }

@@ -8,6 +8,7 @@ import { RoleService } from '../role/role.service';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { EmailService } from '../email/email.service';
+import { PERMISSIONS } from '../../constants/permissions';
 
 /** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
 const BCRYPT_ROUNDS = 12;
@@ -99,6 +100,8 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: admin.name,
+        // A freshly registered company owner is an ADMIN with the full permission set.
+        permissions: Object.values(PERMISSIONS),
         mustChangePassword: false
       }
     };
@@ -116,6 +119,14 @@ export class AuthService {
     if (!valid) {
       throw new AppError('Invalid credentials', 401);
     }
+
+    // Combine role permissions and any per-user grants so the client can gate the UI.
+    const permissions = Array.from(
+      new Set([
+        ...user.role.rolePermissions.map((rp) => rp.permission.name),
+        ...user.userPermissions.map((up) => up.permission.name)
+      ])
+    );
 
     const accessToken = generateAccessToken({
       userId: user.id,
@@ -149,6 +160,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role.name,
+        permissions,
         mustChangePassword: Boolean((user as any).mustChangePassword)
       }
     };

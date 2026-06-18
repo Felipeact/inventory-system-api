@@ -9,11 +9,16 @@
 import type {
   ActivationCode,
   AdminCompany,
+  Assignment,
   Asset,
+  AuditLog,
   AuthResponse,
+  CompanyUser,
   InventoryReport,
+  Movement,
   Product,
   Receipt,
+  TemplateItem,
   Truck,
   TruckStockItem,
   TruckStockTemplate,
@@ -357,6 +362,156 @@ export const api = {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+  },
+
+  async updateAsset(id: string, input: Partial<Asset>) {
+    return request<Asset>(`/assets/${id}`, { method: "PUT", body: input });
+  },
+
+  // ---- Users / team (admin) ----
+  async listUsers() {
+    return asArray<CompanyUser>(await request("/users"), "users");
+  },
+  async inviteUser(input: { name?: string; email: string; role: string }) {
+    return request<{ user: CompanyUser; emailSent: boolean; temporaryPassword?: string }>(
+      "/users/invite",
+      { method: "POST", body: input },
+    );
+  },
+  async updateUser(
+    id: string,
+    input: { name?: string; email?: string; role?: string; password?: string },
+  ) {
+    return request<CompanyUser>(`/users/${id}`, { method: "PUT", body: input });
+  },
+  async resetUserPassword(id: string) {
+    return request<{ temporaryPassword: string }>(`/users/${id}/reset-password`, {
+      method: "POST",
+    });
+  },
+  async deleteUser(id: string) {
+    return request(`/users/${id}`, { method: "DELETE" });
+  },
+  async updateMe(input: { name?: string; email?: string }) {
+    return request<CompanyUser>("/users/me", { method: "PATCH", body: input });
+  },
+
+  // ---- Trucks ----
+  async createTruck(input: {
+    truckNumber: string;
+    plateNumber?: string;
+    status?: string;
+    technicianId?: string;
+  }) {
+    return request<Truck>("/truck-stock/trucks", { method: "POST", body: input });
+  },
+  async updateTruck(id: string, input: Partial<Truck> & { technicianId?: string | null }) {
+    return request<Truck>(`/truck-stock/trucks/${id}`, { method: "PUT", body: input });
+  },
+
+  // ---- Truck-stock templates ----
+  async getTemplate(id: string) {
+    return request<TruckStockTemplate>(`/truck-stock/templates/${id}`);
+  },
+  async createTemplate(input: {
+    name: string;
+    tradeType?: string;
+    items: TemplateItem[];
+  }) {
+    return request<TruckStockTemplate>("/truck-stock/templates", {
+      method: "POST",
+      body: input,
+    });
+  },
+  async updateTemplate(
+    id: string,
+    input: { name?: string; tradeType?: string; items?: TemplateItem[] },
+  ) {
+    return request<TruckStockTemplate>(`/truck-stock/templates/${id}`, {
+      method: "PUT",
+      body: input,
+    });
+  },
+  async deleteTemplate(id: string) {
+    return request(`/truck-stock/templates/${id}`, { method: "DELETE" });
+  },
+
+  // ---- Assignments ----
+  async listAssignments() {
+    return asArray<Assignment>(await request("/truck-stock/assignments"), "assignments");
+  },
+  async createAssignment(input: { truckId: string; templateId: string }) {
+    return request<Assignment>("/truck-stock/assignments", {
+      method: "POST",
+      body: input,
+    });
+  },
+  async updateAssignment(id: string, input: { truckId: string; templateId: string }) {
+    return request<Assignment>(`/truck-stock/assignments/${id}`, {
+      method: "PUT",
+      body: input,
+    });
+  },
+  async deleteAssignment(id: string) {
+    return request(`/truck-stock/assignments/${id}`, { method: "DELETE" });
+  },
+
+  // ---- Truck-stock operations ----
+  async transferToTruck(input: {
+    productId: string;
+    truckStockItemId: string;
+    quantity: number;
+  }) {
+    return request("/truck-stock/transfer-to-truck", { method: "POST", body: input });
+  },
+  async useTruckItem(input: { truckStockItemId: string; quantity: number; notes?: string }) {
+    return request("/truck-stock/use-item", { method: "POST", body: input });
+  },
+  async updateTruckItemQuantity(itemId: string, quantity: number) {
+    return request(`/truck-stock/items/${itemId}/quantity`, {
+      method: "PATCH",
+      body: { quantity },
+    });
+  },
+  async listMovements() {
+    return asArray<Movement>(await request("/truck-stock/movements"), "movements");
+  },
+
+  // ---- Receipts ----
+  async uploadReceiptFile(fileName: string, fileContentBase64: string) {
+    return request<{ fileUrl: string; fileName: string; sizeBytes: number }>(
+      "/truck-stock/receipts/upload",
+      { method: "POST", body: { fileName, fileContentBase64 } },
+    );
+  },
+  async createReceipt(input: { truckId: string; fileUrl: string; totalAmount?: number }) {
+    return request<Receipt>("/truck-stock/receipts", { method: "POST", body: input });
+  },
+  async addReceiptItem(
+    receiptId: string,
+    input: { itemName: string; quantity: number; unitPrice?: number; totalPrice?: number },
+  ) {
+    return request(`/truck-stock/receipts/${receiptId}/items`, {
+      method: "POST",
+      body: input,
+    });
+  },
+  async reconcileReceipt(receiptId: string) {
+    return request(`/truck-stock/receipts/${receiptId}/reconcile`, { method: "POST" });
+  },
+  async updateReceiptStatus(receiptId: string, status: string) {
+    return request<Receipt>(`/truck-stock/receipts/${receiptId}/status`, {
+      method: "PATCH",
+      body: { status },
+    });
+  },
+
+  // ---- Reports (extended) ----
+  async auditLogs() {
+    return asArray<AuditLog>(await request("/reports/audit-logs"), "logs");
+  },
+  async stockMovements() {
+    return asArray<Movement>(await request("/reports/stock-movements"), "movements");
   },
 
   // ---- Public lead / demo capture ----

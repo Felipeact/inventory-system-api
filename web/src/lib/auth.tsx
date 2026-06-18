@@ -22,14 +22,17 @@ interface AuthContextValue {
     companyName: string;
   }) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  /** True if the signed-in user has the given permission (from the login response). */
+  hasPermission: (permission: string) => boolean;
+  /** True if the signed-in user's role matches any of the given names (case-insensitive). */
+  hasRole: (...roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
- * Heuristic role → capability mapping. The login response only carries a role
- * name, so we infer broad capabilities. A future /auth/me permissions list
- * could make this exact.
+ * Heuristic role → admin check, kept for header display. Prefer hasPermission()
+ * for gating actions now that the login response carries the permission list.
  */
 export function roleIsAdmin(role?: string | null) {
   if (!role) return false;
@@ -73,9 +76,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const hasPermission = useCallback(
+    (permission: string) => Boolean(user?.permissions?.includes(permission)),
+    [user],
+  );
+
+  const hasRole = useCallback(
+    (...roles: string[]) =>
+      Boolean(user?.role && roles.some((r) => r.toLowerCase() === user.role.toLowerCase())),
+    [user],
+  );
+
   const value = useMemo(
-    () => ({ user, loading, login, register, logout }),
-    [user, loading, login, register, logout],
+    () => ({ user, loading, login, register, logout, hasPermission, hasRole }),
+    [user, loading, login, register, logout, hasPermission, hasRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -1,18 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Trash2, X, Loader2 } from "lucide-react";
+import { Plus, Search, Trash2, X, Loader2, Pencil } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { Asset } from "@/lib/types";
+import { useAuth } from "@/lib/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 import { PageHeader, Loading, ErrorState, EmptyState, Badge } from "@/components/app/ui";
 import { formatDate } from "@/lib/utils";
 
 export default function AssetsPage() {
+  const { hasPermission } = useAuth();
+  const canAdd = hasPermission(PERMISSIONS.ADD_ASSET);
+  const canEdit = hasPermission(PERMISSIONS.EDIT_ASSET);
+  const canDelete = hasPermission(PERMISSIONS.DELETE_ASSET);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<Asset | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -64,9 +71,11 @@ export default function AssetsPage() {
         title="Assets"
         description="Tools, equipment, and serialized assets."
         action={
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>
-            <Plus size={16} /> Add asset
-          </button>
+          canAdd && (
+            <button className="btn-primary" onClick={() => setShowAdd(true)}>
+              <Plus size={16} /> Add asset
+            </button>
+          )
         }
       />
 
@@ -90,7 +99,7 @@ export default function AssetsPage() {
             title={query ? "No matches" : "No assets yet"}
             description={query ? "Try another search." : "Register your first asset."}
             action={
-              !query && (
+              !query && canAdd && (
                 <button className="btn-primary" onClick={() => setShowAdd(true)}>
                   <Plus size={16} /> Add asset
                 </button>
@@ -122,13 +131,26 @@ export default function AssetsPage() {
                       </td>
                       <td className="px-5 py-3.5 text-ink-500">{formatDate(a.createdAt)}</td>
                       <td className="px-5 py-3.5 text-right">
-                        <button
-                          onClick={() => remove(a)}
-                          className="rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600"
-                          aria-label="Delete"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          {canEdit && (
+                            <button
+                              onClick={() => setEditing(a)}
+                              className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700"
+                              aria-label="Edit"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => remove(a)}
+                              className="rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600"
+                              aria-label="Delete"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -139,13 +161,18 @@ export default function AssetsPage() {
         )}
       </div>
 
-      {showAdd && (
-        <AddAssetModal
-          onClose={() => setShowAdd(false)}
-          onCreated={(a) => {
-            setAssets((prev) => [a, ...prev]);
+      {(showAdd || editing) && (
+        <AssetModal
+          asset={editing}
+          onClose={() => {
             setShowAdd(false);
-            flash("Asset added");
+            setEditing(null);
+          }}
+          onSaved={(a, isEdit) => {
+            setAssets((prev) => (isEdit ? prev.map((x) => (x.id === a.id ? a : x)) : [a, ...prev]));
+            setShowAdd(false);
+            setEditing(null);
+            flash(isEdit ? "Asset updated" : "Asset added");
           }}
         />
       )}
@@ -159,14 +186,23 @@ export default function AssetsPage() {
   );
 }
 
-function AddAssetModal({
+function AssetModal({
+  asset,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  asset: Asset | null;
   onClose: () => void;
-  onCreated: (a: Asset) => void;
+  onSaved: (a: Asset, isEdit: boolean) => void;
 }) {
-  const [form, setForm] = useState({ name: "", type: "", serialCode: "", status: "active", description: "" });
+  const isEdit = Boolean(asset);
+  const [form, setForm] = useState({
+    name: asset?.name ?? "",
+    type: asset?.type ?? "",
+    serialCode: asset?.serialCode ?? "",
+    status: asset?.status ?? "active",
+    description: asset?.description ?? "",
+  });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -175,10 +211,10 @@ function AddAssetModal({
     setErr(null);
     setBusy(true);
     try {
-      const created = await api.createAsset(form);
-      onCreated(created);
+      const saved = asset ? await api.updateAsset(asset.id, form) : await api.createAsset(form);
+      onSaved(saved, isEdit);
     } catch (e2) {
-      setErr(e2 instanceof ApiError ? e2.message : "Could not create asset");
+      setErr(e2 instanceof ApiError ? e2.message : "Could not save asset");
       setBusy(false);
     }
   }
@@ -187,7 +223,7 @@ function AddAssetModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/40 p-0 sm:items-center sm:p-6">
       <div className="w-full max-w-lg rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink-900">Add asset</h2>
+          <h2 className="text-lg font-bold text-ink-900">{isEdit ? "Edit asset" : "Add asset"}</h2>
           <button className="btn-ghost p-1.5" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
@@ -235,7 +271,7 @@ function AddAssetModal({
             </button>
             <button type="submit" className="btn-primary" disabled={busy}>
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              Add asset
+              {isEdit ? "Save changes" : "Add asset"}
             </button>
           </div>
         </form>

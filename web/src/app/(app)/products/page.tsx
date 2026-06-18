@@ -1,17 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Search, Trash2, ScanLine, X, Loader2, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Plus, Search, Trash2, ScanLine, X, Loader2, ArrowDownToLine, ArrowUpFromLine, Pencil } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { productQuantity, type Product } from "@/lib/types";
+import { useAuth } from "@/lib/auth";
+import { PERMISSIONS } from "@/lib/permissions";
 import { PageHeader, Loading, ErrorState, EmptyState, Badge } from "@/components/app/ui";
 
 export default function ProductsPage() {
+  const { hasPermission } = useAuth();
+  const canManage = hasPermission(PERMISSIONS.ADD_PRODUCT);
+  const canScan = hasPermission(PERMISSIONS.SCAN_IN) || hasPermission(PERMISSIONS.SCAN_OUT);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<Product | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -64,13 +70,15 @@ export default function ProductsPage() {
         title="Products"
         description="Your inventory catalog with live quantities."
         action={
-          <button className="btn-primary" onClick={() => setShowAdd(true)}>
-            <Plus size={16} /> Add product
-          </button>
+          canManage && (
+            <button className="btn-primary" onClick={() => setShowAdd(true)}>
+              <Plus size={16} /> Add product
+            </button>
+          )
         }
       />
 
-      <ScanBar onDone={(msg) => { flash(msg); load(); }} />
+      {canScan && <ScanBar onDone={(msg) => { flash(msg); load(); }} />}
 
       <div className="mt-6">
         <div className="relative max-w-sm">
@@ -98,7 +106,7 @@ export default function ProductsPage() {
                 : "Add your first product or scan stock in to get started."
             }
             action={
-              !query && (
+              !query && canManage && (
                 <button className="btn-primary" onClick={() => setShowAdd(true)}>
                   <Plus size={16} /> Add product
                 </button>
@@ -146,13 +154,24 @@ export default function ProductsPage() {
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-right">
-                          <button
-                            onClick={() => handleDelete(p)}
-                            className="rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600"
-                            aria-label="Delete"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {canManage && (
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setEditing(p)}
+                                className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700"
+                                aria-label="Edit"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(p)}
+                                className="rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600"
+                                aria-label="Delete"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
@@ -164,13 +183,20 @@ export default function ProductsPage() {
         )}
       </div>
 
-      {showAdd && (
-        <AddProductModal
-          onClose={() => setShowAdd(false)}
-          onCreated={(p) => {
-            setProducts((prev) => [p, ...prev]);
+      {(showAdd || editing) && (
+        <ProductModal
+          product={editing}
+          onClose={() => {
             setShowAdd(false);
-            flash("Product added");
+            setEditing(null);
+          }}
+          onSaved={(p, isEdit) => {
+            setProducts((prev) =>
+              isEdit ? prev.map((x) => (x.id === p.id ? p : x)) : [p, ...prev],
+            );
+            setShowAdd(false);
+            setEditing(null);
+            flash(isEdit ? "Product updated" : "Product added");
           }}
         />
       )}
@@ -249,21 +275,24 @@ function ScanBar({ onDone }: { onDone: (msg: string) => void }) {
   );
 }
 
-function AddProductModal({
+function ProductModal({
+  product,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  product: Product | null;
   onClose: () => void;
-  onCreated: (p: Product) => void;
+  onSaved: (p: Product, isEdit: boolean) => void;
 }) {
+  const isEdit = Boolean(product);
   const [form, setForm] = useState({
-    name: "",
-    barcode: "",
-    quantity: 0,
-    lowStockThreshold: 5,
-    type: "",
-    location: "",
-    model: "",
+    name: product?.name ?? "",
+    barcode: product?.barcode ?? "",
+    quantity: product ? productQuantity(product) : 0,
+    lowStockThreshold: product?.lowStockThreshold ?? 5,
+    type: product?.type ?? "",
+    location: product?.location ?? "",
+    model: product?.model ?? "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -277,7 +306,7 @@ function AddProductModal({
     setErr(null);
     setBusy(true);
     try {
-      const created = await api.createProduct({
+      const payload = {
         name: form.name,
         barcode: form.barcode,
         quantity: Number(form.quantity),
@@ -285,10 +314,13 @@ function AddProductModal({
         type: form.type || undefined,
         location: form.location || undefined,
         model: form.model || undefined,
-      });
-      onCreated(created);
+      };
+      const saved = product
+        ? await api.updateProduct(product.id, payload)
+        : await api.createProduct(payload);
+      onSaved(saved, isEdit);
     } catch (e2) {
-      setErr(e2 instanceof ApiError ? e2.message : "Could not create product");
+      setErr(e2 instanceof ApiError ? e2.message : "Could not save product");
       setBusy(false);
     }
   }
@@ -297,7 +329,7 @@ function AddProductModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/40 p-0 sm:items-center sm:p-6">
       <div className="w-full max-w-lg rounded-t-2xl bg-white p-6 shadow-xl sm:rounded-2xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink-900">Add product</h2>
+          <h2 className="text-lg font-bold text-ink-900">{isEdit ? "Edit product" : "Add product"}</h2>
           <button className="btn-ghost p-1.5" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
@@ -357,7 +389,7 @@ function AddProductModal({
             </button>
             <button type="submit" className="btn-primary" disabled={busy}>
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-              Add product
+              {isEdit ? "Save changes" : "Add product"}
             </button>
           </div>
         </form>

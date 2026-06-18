@@ -8,7 +8,64 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  /** Effective permission names (role + per-user grants) returned on login. */
+  permissions?: string[];
   mustChangePassword?: boolean;
+}
+
+/** A company team member as returned by GET /users. */
+export interface CompanyUser {
+  id: string;
+  name: string;
+  email: string;
+  role?: { name: string } | null;
+  roleId?: string;
+  mustChangePassword?: boolean;
+}
+
+/** Truck-stock template line item. */
+export interface TemplateItem {
+  id?: string;
+  productName: string;
+  category?: string | null;
+  requiredQuantity: number;
+  currentQuantity?: number;
+  minimumQuantity?: number;
+  expectedPrice?: number | null;
+  unit?: string | null;
+  notes?: string | null;
+}
+
+/** A truck-stock assignment of a template to a truck. */
+export interface Assignment {
+  id: string;
+  truckId: string;
+  templateId: string;
+  truck?: Truck | null;
+  template?: TruckStockTemplate | null;
+  createdAt?: string;
+}
+
+/** A truck-stock movement / history entry. */
+export interface Movement {
+  id: string;
+  action: string;
+  previousQuantity: number;
+  newQuantity: number;
+  notes?: string | null;
+  createdAt?: string;
+  truckStockItem?: { productName?: string } | null;
+  changedBy?: { name?: string; email?: string } | null;
+}
+
+/** An audit log entry from GET /reports/audit-logs. */
+export interface AuditLog {
+  id: string;
+  action: string;
+  userId: string;
+  companyId: string;
+  details?: string | null;
+  createdAt: string;
 }
 
 export interface AuthResponse {
