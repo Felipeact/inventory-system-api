@@ -13,6 +13,7 @@ import {
   PackageCheck,
   ReceiptText,
   Sparkles,
+  CreditCard,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -49,6 +50,7 @@ const NAV: NavItem[] = [
   },
   { label: "Reports", href: "/reports", icon: BarChart3, perm: PERMISSIONS.VIEW_STOCK },
   { label: "Team", href: "/users", icon: Users, perm: PERMISSIONS.MANAGE_USERS },
+  { label: "Billing", href: "/billing", icon: CreditCard, perm: PERMISSIONS.MANAGE_USERS },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -113,7 +115,7 @@ export function Sidebar({
 
         <div className="border-t border-ink-100 p-3">
           <Link
-            href="/request-demo"
+            href="/billing"
             className="block rounded-lg bg-gradient-to-br from-brand-600 to-brand-500 p-4 text-white"
           >
             <p className="text-sm font-semibold">Upgrade your plan</p>

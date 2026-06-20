@@ -34,6 +34,12 @@ model Company {
    */
   monthlyPriceOverride Float?
 
+  /** Stripe billing linkage (null until the company starts a paid subscription). */
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  /** End of the current paid period, from Stripe (for "renews on" display). */
+  currentPeriodEnd     DateTime?
+
   trucks              Truck[]
   truckStockTemplates TruckStockTemplate[]
   purchaseReceipts    PurchaseReceipt[]

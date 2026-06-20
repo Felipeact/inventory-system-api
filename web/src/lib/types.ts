@@ -161,6 +161,20 @@ export interface AdminCompany {
   products?: { id: string }[];
 }
 
+/** A company's Stripe billing state from GET /billing/status. */
+export interface BillingStatus {
+  /** False when Stripe isn't configured on the API. */
+  enabled: boolean;
+  plan: string;
+  subscriptionStatus: string;
+  hasSubscription: boolean;
+  /** True when a Stripe customer exists (so the portal can be opened). */
+  manageable: boolean;
+  currentPeriodEnd?: string | null;
+  seats: number;
+  monthlyPriceOverride?: number | null;
+}
+
 /** Super-admin: an activation code as returned by /super-admin/activation-codes. */
 export interface ActivationCode {
   id: string;

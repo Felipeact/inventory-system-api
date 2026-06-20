@@ -90,6 +90,18 @@ const envSchema = z.object({
   /** Claude model the AI assistant uses. Defaults to the latest Opus. */
   AI_MODEL: z.string().default('claude-opus-4-8'),
 
+  /**
+   * Stripe billing (optional). When STRIPE_SECRET_KEY is unset the /billing endpoints
+   * return a friendly 503 and the rest of the API runs normally. Use a test key
+   * (sk_test_…) while developing. STRIPE_WEBHOOK_SECRET (whsec_…) verifies incoming
+   * webhook signatures. STRIPE_PRICE_PRO / STRIPE_PRICE_BUSINESS are the recurring
+   * per-seat Price IDs created in the Stripe dashboard for each plan.
+   */
+  STRIPE_SECRET_KEY: z.string().default(''),
+  STRIPE_WEBHOOK_SECRET: z.string().default(''),
+  STRIPE_PRICE_PRO: z.string().default(''),
+  STRIPE_PRICE_BUSINESS: z.string().default(''),
+
   /** Application version for update endpoints */
   APP_VERSION: z.string().default('1.0.0'),
 
@@ -230,3 +242,9 @@ export const resendEnabled = Boolean(env.RESEND_API_KEY);
  * 503 with guidance instead of attempting to reach Anthropic without a key.
  */
 export const aiEnabled = Boolean(env.ANTHROPIC_API_KEY);
+
+/**
+ * Whether Stripe billing is configured. When false the `/billing` endpoints return a
+ * 503 with guidance instead of attempting to reach Stripe without a key.
+ */
+export const billingEnabled = Boolean(env.STRIPE_SECRET_KEY);

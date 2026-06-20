@@ -10,6 +10,7 @@ import type {
   ActivationCode,
   AdminAnalytics,
   AdminCompany,
+  BillingStatus,
   Assignment,
   Asset,
   AuditLog,
@@ -522,6 +523,22 @@ export const api = {
       body: input,
       auth: false,
     });
+  },
+
+  // ---- Billing (Stripe) ----
+  async billingStatus() {
+    return request<BillingStatus>("/billing/status");
+  },
+  /** Start Stripe Checkout for a plan; returns a hosted URL to redirect to. */
+  async billingCheckout(plan: string) {
+    return request<{ url: string }>("/billing/checkout", {
+      method: "POST",
+      body: { plan },
+    });
+  },
+  /** Open the Stripe customer portal; returns a hosted URL to redirect to. */
+  async billingPortal() {
+    return request<{ url: string }>("/billing/portal", { method: "POST" });
   },
 
   // ---- AI assistant ----

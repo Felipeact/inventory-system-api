@@ -31,6 +31,8 @@ import exportRoutes from './modules/export/export.routes';
 import truckStockRoutes from './modules/truck-stock/truck-stock.routes';
 import leadRoutes from './modules/lead/lead.routes';
 import aiRoutes from './modules/ai/ai.routes';
+import billingRoutes from './modules/billing/billing.routes';
+import { billingWebhookHandler } from './modules/billing/billing.controller';
 
 /** Initialize Express application instance */
 const app = express();
@@ -69,6 +71,12 @@ app.use(cors({
   },
   credentials: true
 }));
+
+/**
+ * Stripe webhook — MUST be registered before the JSON body parser so Stripe's signature
+ * can be verified against the exact raw bytes. Uses a raw body parser scoped to this path.
+ */
+app.post('/billing/webhook', express.raw({ type: 'application/json' }), billingWebhookHandler);
 
 /** Body parser middleware - parses incoming JSON requests with a size limit */
 app.use(express.json({ limit: '15mb' }));
@@ -136,6 +144,7 @@ app.use('/super-admin', superAdminRoutes); // Super admin management routes
 app.use('/truck-stock', truckStockRoutes);
 app.use('/leads', leadRoutes); // Public demo/contact request capture (emails the owner)
 app.use('/ai', aiRoutes); // AI assistant (chat + tool-driven actions over the company's data)
+app.use('/billing', billingRoutes); // Stripe subscriptions (checkout, customer portal, status)
 
 /** JSON 404 for unknown routes so the API never falls back to Express' default HTML page */
 app.use((req, res, next) => {
