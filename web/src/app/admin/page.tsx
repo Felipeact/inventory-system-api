@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Loader2,
@@ -13,6 +14,7 @@ import {
   Ban,
   Building2,
   KeyRound,
+  LineChart,
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError, API_BASE_URL } from "@/lib/api";
 import type { ActivationCode, AdminCompany } from "@/lib/types";
@@ -86,6 +88,9 @@ export default function AdminDashboard() {
           <ShieldCheck size={20} className="text-brand-600" /> Platform Admin
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/admin/billing" className="btn-ghost text-sm">
+            <LineChart size={16} /> Revenue
+          </Link>
           <button onClick={load} className="btn-ghost p-2" title="Refresh" aria-label="Refresh">
             <RefreshCw size={18} />
           </button>

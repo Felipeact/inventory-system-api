@@ -173,6 +173,53 @@ export interface ActivationCode {
   companyId?: string | null;
 }
 
+/** Super-admin: a company's billing row from /super-admin/analytics. */
+export interface BillingCompany {
+  id: string;
+  name: string;
+  plan: string;
+  subscriptionStatus: string;
+  isActive: boolean;
+  seats: number;
+  products: number;
+  createdAt?: string;
+  /** Per-seat list price for the plan, or null for custom-priced plans. */
+  pricePerSeat: number | null;
+  /** Flat custom monthly amount in effect, or null. */
+  monthlyPriceOverride: number | null;
+  /** Contracted monthly revenue (override if set, else seats × per-seat price). */
+  monthlyRevenue: number;
+  /** Custom-priced plan with no override set yet → counts as $0. */
+  needsPricing: boolean;
+}
+
+export interface PlanBreakdown {
+  plan: string;
+  pricePerSeat: number | null;
+  companies: number;
+  activeCompanies: number;
+  seats: number;
+  mrr: number;
+}
+
+/** Super-admin: revenue analytics from /super-admin/analytics. */
+export interface AdminAnalytics {
+  metrics: {
+    totalCompanies: number;
+    activeCompanies: number;
+    payingCompanies: number;
+    companiesNeedingPricing: number;
+    activeSeats: number;
+    mrr: number;
+    arr: number;
+    arpa: number;
+  };
+  planBreakdown: PlanBreakdown[];
+  statusBreakdown: Record<string, number>;
+  signupsByMonth: { month: string; count: number }[];
+  companies: BillingCompany[];
+}
+
 /** Helper to read a product's quantity regardless of API shape. */
 export function productQuantity(p: Product): number {
   if (typeof p.quantity === "number") return p.quantity;

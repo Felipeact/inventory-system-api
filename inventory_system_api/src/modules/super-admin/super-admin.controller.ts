@@ -60,4 +60,14 @@ export class SuperAdminController extends BaseController {
         const data = await this.service.deactivateActivationCode(req.params.id as string);
         return this.ok(res, data);
     });
+
+    getAnalytics = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.getAnalytics();
+        return this.ok(res, data);
+    });
+
+    setCompanyPricing = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.setCompanyPricing(req.params.id as string, req.body);
+        return this.ok(res, data);
+    });
 }

@@ -8,6 +8,7 @@
  */
 import type {
   ActivationCode,
+  AdminAnalytics,
   AdminCompany,
   Assignment,
   Asset,
@@ -640,5 +641,20 @@ export const superAdminApi = {
     input: { plan: string; maxUsers: number; maxProducts: number },
   ) {
     return saRequest(`/companies/${id}/plan`, { method: "PATCH", body: input });
+  },
+
+  // ---- Revenue analytics ----
+  async analytics() {
+    return saRequest<AdminAnalytics>("/analytics");
+  },
+  /**
+   * Set (number) or clear (null) a company's flat monthly contract amount, used for
+   * custom/Enterprise deals. Clearing reverts to standard per-seat plan pricing.
+   */
+  async setCompanyPricing(id: string, monthlyPriceOverride: number | null) {
+    return saRequest(`/companies/${id}/pricing`, {
+      method: "PATCH",
+      body: { monthlyPriceOverride },
+    });
   },
 };

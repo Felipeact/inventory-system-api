@@ -27,6 +27,13 @@ model Company {
   maxUsers           Int    @default(3)
   maxProducts        Int    @default(100)
 
+  /**
+   * Optional flat monthly contract amount (USD) set by a super-admin. Overrides the
+   * per-seat plan price when present — used for custom/Enterprise deals. Null means
+   * "use the standard per-seat plan pricing".
+   */
+  monthlyPriceOverride Float?
+
   trucks              Truck[]
   truckStockTemplates TruckStockTemplate[]
   purchaseReceipts    PurchaseReceipt[]

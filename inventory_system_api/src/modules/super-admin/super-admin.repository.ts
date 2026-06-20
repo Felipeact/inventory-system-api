@@ -66,6 +66,13 @@ export class SuperAdminRepository {
     });
   }
 
+  updateCompanyPricing(companyId: string, monthlyPriceOverride: number | null) {
+    return prisma.company.update({
+      where: { id: companyId },
+      data: { monthlyPriceOverride }
+    });
+  }
+
   countSuperAdmins() {
     return prisma.superAdmin.count();
   }

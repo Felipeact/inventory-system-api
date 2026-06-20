@@ -3,7 +3,7 @@ import { SuperAdminController } from './super-admin.controller';
 import { superAdminMiddleware } from '../../middleware/super-admin.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { authRateLimiter } from '../../middleware/rate-limit.middleware';
-import { companyIdSchema, createActivationCodeSchema, createSuperAdminSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
+import { companyIdSchema, createActivationCodeSchema, createSuperAdminSchema, setCompanyPricingSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
 
 const router = Router();
 const controller = new SuperAdminController();
@@ -33,6 +33,19 @@ router.get(
   '/companies',
   superAdminMiddleware,
   controller.listCompanies
+);
+
+router.get(
+  '/analytics',
+  superAdminMiddleware,
+  controller.getAnalytics
+);
+
+router.patch(
+  '/companies/:id/pricing',
+  superAdminMiddleware,
+  validate(setCompanyPricingSchema),
+  controller.setCompanyPricing
 );
 
 router.patch(

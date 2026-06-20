@@ -39,3 +39,15 @@ export const companyIdSchema = z.object({
     id: z.string().min(1, 'Company id is required')
   })
 });
+
+export const setCompanyPricingSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Company id is required')
+  }),
+  body: z.object({
+    monthlyPriceOverride: z
+      .number()
+      .nonnegative('monthlyPriceOverride must be 0 or greater')
+      .nullable()
+  })
+});
