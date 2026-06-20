@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, LogOut, KeyRound, Check } from "lucide-react";
-import { api, ApiError, API_BASE_URL } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { useAuth, roleIsAdmin } from "@/lib/auth";
 import { PageHeader } from "@/components/app/ui";
 
@@ -13,7 +13,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="Settings" description="Your profile, security, and connection." />
+      <PageHeader title="Settings" description="Your profile and security." />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Profile */}
@@ -35,23 +35,8 @@ export default function SettingsPage() {
           </button>
         </section>
 
-        {/* Connection */}
-        <section className="card p-6">
-          <h2 className="text-base font-semibold text-ink-900">API connection</h2>
-          <p className="mt-2 text-sm text-ink-500">
-            The dashboard is talking to this Inventory System API instance:
-          </p>
-          <code className="mt-3 block break-all rounded-lg bg-ink-50 px-3 py-2.5 font-mono text-xs text-ink-700">
-            {API_BASE_URL}
-          </code>
-          <p className="mt-3 text-xs text-ink-400">
-            Configure this with the <code className="font-mono">NEXT_PUBLIC_API_BASE_URL</code>{" "}
-            environment variable at build time.
-          </p>
-        </section>
-
         {/* Change password */}
-        <section className="card p-6 lg:col-span-2">
+        <section className="card p-6">
           <ChangePassword />
         </section>
       </div>
