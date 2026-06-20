@@ -522,6 +522,21 @@ export const api = {
       auth: false,
     });
   },
+
+  // ---- AI assistant ----
+  async aiStatus() {
+    return request<{ enabled: boolean }>("/ai/status");
+  },
+  /**
+   * Send the full conversation (plain-text turns; the last one is the new user
+   * message) and get back the assistant's reply plus the actions it took.
+   */
+  async aiChat(messages: { role: "user" | "assistant"; content: string }[]) {
+    return request<{ reply: string; actions: { tool: string; ok: boolean }[] }>(
+      "/ai/chat",
+      { method: "POST", body: { messages } },
+    );
+  },
 };
 
 /**

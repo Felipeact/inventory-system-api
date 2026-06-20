@@ -80,6 +80,16 @@ const envSchema = z.object({
    */
   SUPER_ADMIN_BOOTSTRAP_SECRET: z.string().default(''),
 
+  /**
+   * Anthropic (Claude) API key powering the in-app AI assistant. When unset the
+   * AI endpoints return a friendly 503 instead of crashing, so the rest of the
+   * API runs fine without it. Get one at https://console.anthropic.com.
+   */
+  ANTHROPIC_API_KEY: z.string().default(''),
+
+  /** Claude model the AI assistant uses. Defaults to the latest Opus. */
+  AI_MODEL: z.string().default('claude-opus-4-8'),
+
   /** Application version for update endpoints */
   APP_VERSION: z.string().default('1.0.0'),
 
@@ -214,3 +224,9 @@ export const emailEnabled = Boolean(
 
 /** Whether the Resend HTTPS email provider is configured (preferred over SMTP). */
 export const resendEnabled = Boolean(env.RESEND_API_KEY);
+
+/**
+ * Whether the AI assistant is configured. When false the `/ai` endpoints return a
+ * 503 with guidance instead of attempting to reach Anthropic without a key.
+ */
+export const aiEnabled = Boolean(env.ANTHROPIC_API_KEY);

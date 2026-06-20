@@ -12,6 +12,7 @@ import {
   Users,
   PackageCheck,
   ReceiptText,
+  Sparkles,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +31,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "AI Assistant", href: "/assistant", icon: Sparkles },
   { label: "Products", href: "/products", icon: Boxes, perm: PERMISSIONS.VIEW_STOCK },
   { label: "Assets", href: "/assets", icon: HardHat, perm: PERMISSIONS.VIEW_ASSET },
   { label: "Fleet", href: "/trucks", icon: Truck, perm: PERMISSIONS.VIEW_TRUCK_STOCK },
