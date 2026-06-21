@@ -674,7 +674,13 @@ export const superAdminApi = {
   // ---- Custom recurring charges ("quotes") ----
   async createQuote(
     companyId: string,
-    input: { amount: number; interval: "monthly" | "biweekly"; label?: string },
+    input: {
+      amount: number;
+      interval: "monthly" | "biweekly";
+      label?: string;
+      setupFee?: number;
+      setupLabel?: string;
+    },
   ) {
     return saRequest<CreateQuoteResult>(`/companies/${companyId}/quote`, {
       method: "POST",

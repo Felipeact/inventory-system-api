@@ -316,13 +316,20 @@ export class BillingService {
   }
 
   /**
-   * Create a custom recurring charge ("quote") for a company: an ad-hoc priced Stripe
-   * subscription billed monthly or biweekly via emailed/hosted invoices (no card on file
-   * required). Returns the subscription and a hosted invoice URL the operator can send.
+   * Create a custom recurring charge ("quote") for a company. Returns a Stripe Checkout
+   * link the operator sends to the client; the client enters a card once, the card is
+   * kept on file, and Stripe then auto-charges the recurring amount every cycle (monthly
+   * or biweekly). An optional one-time setup fee is billed on the first invoice.
    */
   async createQuote(
     companyId: string,
-    input: { amount: number; interval: 'monthly' | 'biweekly'; label?: string },
+    input: {
+      amount: number;
+      interval: 'monthly' | 'biweekly';
+      label?: string;
+      setupFee?: number;
+      setupLabel?: string;
+    },
   ) {
     const amount = Number(input.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -331,59 +338,71 @@ export class BillingService {
     if (input.interval !== 'monthly' && input.interval !== 'biweekly') {
       throw new AppError('interval must be "monthly" or "biweekly".', 400);
     }
+    const setupFee = Number(input.setupFee ?? 0);
+    if (!Number.isFinite(setupFee) || setupFee < 0) {
+      throw new AppError('setupFee must be 0 or a positive number (USD).', 400);
+    }
 
     const customer = await this.ensureCustomer(companyId);
     const label = (input.label || 'Custom plan').trim();
+    const base = this.frontendUrl();
+    const stripe = this.client();
 
-    // Subscription price_data needs an existing Product id (unlike Checkout/Invoice
-    // line items, it does not accept inline product_data), so create one per quote.
-    const product = await this.client().products.create({
+    // Recurring line item (price_data needs an existing Product id).
+    const product = await stripe.products.create({
       name: label,
       metadata: { companyId, kind: 'custom_quote' },
     });
 
-    const subscription = await this.client().subscriptions.create({
-      customer,
-      collection_method: 'send_invoice',
-      days_until_due: 30,
-      metadata: { companyId, kind: 'custom_quote' },
-      items: [
-        {
-          price_data: {
-            currency: 'usd',
-            unit_amount: Math.round(amount * 100),
-            recurring: this.recurringFor(input.interval),
-            product: product.id,
-          },
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
+      {
+        quantity: 1,
+        price_data: {
+          currency: 'usd',
+          unit_amount: Math.round(amount * 100),
+          recurring: this.recurringFor(input.interval),
+          product: product.id,
         },
-      ],
+      },
+    ];
+
+    // Optional one-time setup fee — added to the subscription's first invoice.
+    if (setupFee > 0) {
+      const setupProduct = await stripe.products.create({
+        name: (input.setupLabel || 'Setup fee').trim(),
+        metadata: { companyId, kind: 'custom_quote_setup' },
+      });
+      lineItems.push({
+        quantity: 1,
+        price_data: {
+          currency: 'usd',
+          unit_amount: Math.round(setupFee * 100),
+          product: setupProduct.id,
+        },
+      });
+    }
+
+    // Checkout in subscription mode collects + stores the card and bills automatically.
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer,
+      client_reference_id: companyId,
+      line_items: lineItems,
+      subscription_data: { metadata: { companyId, kind: 'custom_quote' } },
+      success_url: `${base}/?billing=success`,
+      cancel_url: `${base}/?billing=cancelled`,
     });
 
-    // Finalize the first invoice so we have a payable hosted URL to share now.
-    let hostedInvoiceUrl: string | null = null;
-    const invoiceId =
-      typeof subscription.latest_invoice === 'string'
-        ? subscription.latest_invoice
-        : subscription.latest_invoice?.id;
-    if (invoiceId) {
-      try {
-        let invoice = await this.client().invoices.retrieve(invoiceId);
-        if (invoice.status === 'draft') {
-          invoice = await this.client().invoices.finalizeInvoice(invoiceId);
-        }
-        hostedInvoiceUrl = invoice.hosted_invoice_url ?? null;
-      } catch (err) {
-        logger.warn({ err, invoiceId }, 'Could not finalize quote invoice');
-      }
+    if (!session.url) {
+      throw new AppError('Stripe did not return a checkout URL.', 502);
     }
 
     return {
-      id: subscription.id,
-      status: subscription.status,
+      url: session.url,
       amount,
       interval: input.interval,
       label,
-      hostedInvoiceUrl,
+      setupFee,
     };
   }
 

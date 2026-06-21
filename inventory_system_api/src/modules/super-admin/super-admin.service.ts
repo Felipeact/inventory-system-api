@@ -192,6 +192,8 @@ export class SuperAdminService {
             amount: Number(dto?.amount),
             interval: dto?.interval,
             label: dto?.label,
+            setupFee: dto?.setupFee != null ? Number(dto.setupFee) : 0,
+            setupLabel: dto?.setupLabel,
         });
     }
 

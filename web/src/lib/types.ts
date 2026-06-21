@@ -202,14 +202,16 @@ export interface AdminQuote {
   createdAt?: string;
 }
 
-/** Result of creating a quote — includes a payable hosted invoice URL. */
+/**
+ * Result of creating a quote — a Stripe Checkout link the client opens to add a card
+ * (kept on file) and start automatic recurring billing.
+ */
 export interface CreateQuoteResult {
-  id: string;
-  status: string;
+  url: string;
   amount: number;
   interval: "monthly" | "biweekly";
   label: string;
-  hostedInvoiceUrl: string | null;
+  setupFee: number;
 }
 
 /** Super-admin: a company's billing row from /super-admin/analytics. */

@@ -50,7 +50,9 @@ export const createQuoteSchema = z.object({
   body: z.object({
     amount: z.number().positive('amount must be greater than 0'),
     interval: z.enum(['monthly', 'biweekly']),
-    label: z.string().max(200).optional()
+    label: z.string().max(200).optional(),
+    setupFee: z.number().nonnegative('setupFee must be 0 or greater').optional(),
+    setupLabel: z.string().max(200).optional()
   })
 });
 
