@@ -61,7 +61,8 @@ export class ProductService {
 
     if (productCount >= company.maxProducts) {
       throw new AppError(
-        `Product limit reached for ${company.plan} plan`,
+        `Product limit reached: your ${company.plan} plan allows ${company.maxProducts} ` +
+          `products and you already have ${productCount}. Upgrade your plan to add more.`,
         403
       );
     }

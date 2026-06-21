@@ -129,7 +129,18 @@ function BillingPageInner() {
                   )}
                 </div>
                 <p className="mt-2 text-sm text-ink-500">
-                  {status.seats} {status.seats === 1 ? "seat" : "seats"} in use
+                  {status.maxUsers && status.maxUsers < 1_000_000 ? (
+                    <>
+                      {status.seats} of {status.maxUsers} seats used
+                      {status.seats >= status.maxUsers && (
+                        <span className="ml-1 font-medium text-amber-600">· seat limit reached</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {status.seats} {status.seats === 1 ? "seat" : "seats"} in use
+                    </>
+                  )}
                   {status.currentPeriodEnd && (
                     <> · renews {new Date(status.currentPeriodEnd).toLocaleDateString()}</>
                   )}

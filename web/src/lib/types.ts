@@ -172,6 +172,10 @@ export interface BillingStatus {
   manageable: boolean;
   currentPeriodEnd?: string | null;
   seats: number;
+  /** Plan seat cap (a large sentinel ~1,000,000 means "unlimited"). */
+  maxUsers?: number;
+  /** Plan product cap. */
+  maxProducts?: number;
   monthlyPriceOverride?: number | null;
 }
 

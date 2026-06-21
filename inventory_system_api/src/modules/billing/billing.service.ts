@@ -63,6 +63,8 @@ export class BillingService {
       manageable: Boolean(company.stripeCustomerId),
       currentPeriodEnd: company.currentPeriodEnd,
       seats,
+      maxUsers: company.maxUsers,
+      maxProducts: company.maxProducts,
       monthlyPriceOverride: company.monthlyPriceOverride,
     };
   }

@@ -54,7 +54,9 @@ export class UserService {
 
     if (userCount >= company.maxUsers) {
       throw new AppError(
-        `User limit reached for ${company.plan} plan`,
+        `Seat limit reached: your ${company.plan} plan allows ${company.maxUsers} ` +
+          `user${company.maxUsers === 1 ? '' : 's'} and you already have ${userCount}. ` +
+          `Upgrade your plan or remove a user to add another.`,
         403
       );
     }
