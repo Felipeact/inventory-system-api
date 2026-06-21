@@ -70,4 +70,19 @@ export class SuperAdminController extends BaseController {
         const data = await this.service.setCompanyPricing(req.params.id as string, req.body);
         return this.ok(res, data);
     });
+
+    createQuote = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.createQuote(req.params.id as string, req.body);
+        return this.created(res, data);
+    });
+
+    listQuotes = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.listQuotes(req.params.id as string);
+        return this.ok(res, data);
+    });
+
+    cancelQuote = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.cancelQuote(req.params.subId as string);
+        return this.ok(res, data);
+    });
 }

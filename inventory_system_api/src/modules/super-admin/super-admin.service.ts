@@ -7,6 +7,7 @@ import { env } from '../../config/env';
 import { EmailService } from '../email/email.service';
 import { PLAN_MONTHLY_PRICE_PER_SEAT, computeCompanyBilling } from './pricing';
 import { PLAN_CATALOG } from '../../config/plans';
+import { BillingService } from '../billing/billing.service';
 
 /** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
 const BCRYPT_ROUNDS = 12;
@@ -23,6 +24,7 @@ function secretsMatch(provided: string, expected: string): boolean {
 export class SuperAdminService {
     private repo = new SuperAdminRepository();
     private emailService = new EmailService();
+    private billing = new BillingService();
 
     async createSuperAdmin(dto: any, bootstrapSecret?: string) {
         const { email, password } = dto;
@@ -179,6 +181,34 @@ export class SuperAdminService {
         }
 
         return this.repo.deactivateActivationCode(id);
+    }
+
+    /** Create a custom recurring charge (quote) for a company via Stripe. */
+    createQuote(companyId: string, dto: any) {
+        if (!companyId) {
+            throw new AppError('companyId is required', 400);
+        }
+        return this.billing.createQuote(companyId, {
+            amount: Number(dto?.amount),
+            interval: dto?.interval,
+            label: dto?.label,
+        });
+    }
+
+    /** List a company's custom recurring charges (quotes). */
+    listQuotes(companyId: string) {
+        if (!companyId) {
+            throw new AppError('companyId is required', 400);
+        }
+        return this.billing.listQuotes(companyId);
+    }
+
+    /** Cancel a custom quote subscription. */
+    cancelQuote(subscriptionId: string) {
+        if (!subscriptionId) {
+            throw new AppError('subscription id is required', 400);
+        }
+        return this.billing.cancelQuote(subscriptionId);
     }
 
     /**

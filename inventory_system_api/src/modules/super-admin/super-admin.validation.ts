@@ -43,6 +43,17 @@ export const companyIdSchema = z.object({
   })
 });
 
+export const createQuoteSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Company id is required')
+  }),
+  body: z.object({
+    amount: z.number().positive('amount must be greater than 0'),
+    interval: z.enum(['monthly', 'biweekly']),
+    label: z.string().max(200).optional()
+  })
+});
+
 export const setCompanyPricingSchema = z.object({
   params: z.object({
     id: z.string().min(1, 'Company id is required')

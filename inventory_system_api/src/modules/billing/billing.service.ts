@@ -186,7 +186,19 @@ export class BillingService {
         break;
       }
       case 'customer.subscription.deleted': {
-        await this.lapseSubscription(event.data.object as Stripe.Subscription);
+        const sub = event.data.object as Stripe.Subscription;
+        const companyId = await this.companyIdFor(sub);
+        // Only suspend the company when its *plan* subscription ends — not when a
+        // one-off custom quote/charge subscription is cancelled.
+        if (companyId) {
+          const company = await prisma.company.findUnique({
+            where: { id: companyId },
+            select: { stripeSubscriptionId: true },
+          });
+          if (company?.stripeSubscriptionId === sub.id) {
+            await this.lapseSubscription(sub);
+          }
+        }
         break;
       }
       default:
@@ -286,5 +298,130 @@ export class BillingService {
       (subscription as unknown as { current_period_end?: number }).current_period_end ??
       (item as unknown as { current_period_end?: number } | undefined)?.current_period_end;
     return typeof seconds === 'number' ? new Date(seconds * 1000) : null;
+  }
+
+  // ---- Operator quotes: custom recurring charges (super-admin) ----------------
+
+  /** Map our interval names to Stripe recurring config. */
+  private recurringFor(interval: 'monthly' | 'biweekly'): { interval: 'month' | 'week'; interval_count: number } {
+    return interval === 'biweekly'
+      ? { interval: 'week', interval_count: 2 }
+      : { interval: 'month', interval_count: 1 };
+  }
+
+  private intervalLabel(interval?: string | null, count?: number | null): 'monthly' | 'biweekly' | 'custom' {
+    if (interval === 'month' && (count ?? 1) === 1) return 'monthly';
+    if (interval === 'week' && count === 2) return 'biweekly';
+    return 'custom';
+  }
+
+  /**
+   * Create a custom recurring charge ("quote") for a company: an ad-hoc priced Stripe
+   * subscription billed monthly or biweekly via emailed/hosted invoices (no card on file
+   * required). Returns the subscription and a hosted invoice URL the operator can send.
+   */
+  async createQuote(
+    companyId: string,
+    input: { amount: number; interval: 'monthly' | 'biweekly'; label?: string },
+  ) {
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new AppError('amount must be a positive number (USD).', 400);
+    }
+    if (input.interval !== 'monthly' && input.interval !== 'biweekly') {
+      throw new AppError('interval must be "monthly" or "biweekly".', 400);
+    }
+
+    const customer = await this.ensureCustomer(companyId);
+    const label = (input.label || 'Custom plan').trim();
+
+    // Subscription price_data needs an existing Product id (unlike Checkout/Invoice
+    // line items, it does not accept inline product_data), so create one per quote.
+    const product = await this.client().products.create({
+      name: label,
+      metadata: { companyId, kind: 'custom_quote' },
+    });
+
+    const subscription = await this.client().subscriptions.create({
+      customer,
+      collection_method: 'send_invoice',
+      days_until_due: 30,
+      metadata: { companyId, kind: 'custom_quote' },
+      items: [
+        {
+          price_data: {
+            currency: 'usd',
+            unit_amount: Math.round(amount * 100),
+            recurring: this.recurringFor(input.interval),
+            product: product.id,
+          },
+        },
+      ],
+    });
+
+    // Finalize the first invoice so we have a payable hosted URL to share now.
+    let hostedInvoiceUrl: string | null = null;
+    const invoiceId =
+      typeof subscription.latest_invoice === 'string'
+        ? subscription.latest_invoice
+        : subscription.latest_invoice?.id;
+    if (invoiceId) {
+      try {
+        let invoice = await this.client().invoices.retrieve(invoiceId);
+        if (invoice.status === 'draft') {
+          invoice = await this.client().invoices.finalizeInvoice(invoiceId);
+        }
+        hostedInvoiceUrl = invoice.hosted_invoice_url ?? null;
+      } catch (err) {
+        logger.warn({ err, invoiceId }, 'Could not finalize quote invoice');
+      }
+    }
+
+    return {
+      id: subscription.id,
+      status: subscription.status,
+      amount,
+      interval: input.interval,
+      label,
+      hostedInvoiceUrl,
+    };
+  }
+
+  /** List a company's custom recurring charges (quotes), excluding its plan subscription. */
+  async listQuotes(companyId: string) {
+    const company = await prisma.company.findUnique({ where: { id: companyId } });
+    if (!company) throw new AppError('Company not found', 404);
+    if (!company.stripeCustomerId) return [];
+
+    const subs = await this.client().subscriptions.list({
+      customer: company.stripeCustomerId,
+      status: 'all',
+      limit: 100,
+      expand: ['data.items.data.price.product'],
+    });
+
+    return subs.data
+      .filter((sub) => sub.id !== company.stripeSubscriptionId) // exclude the plan sub
+      .map((sub) => {
+        const item = sub.items.data[0];
+        const price = item?.price;
+        const quantity = item?.quantity ?? 1;
+        const amount = ((price?.unit_amount ?? 0) * quantity) / 100;
+        return {
+          id: sub.id,
+          status: sub.status,
+          amount,
+          interval: this.intervalLabel(price?.recurring?.interval, price?.recurring?.interval_count),
+          label: price?.nickname || (typeof price?.product === 'object' ? (price.product as any)?.name : null) || 'Custom plan',
+          currentPeriodEnd: this.periodEnd(sub, item),
+          createdAt: new Date(sub.created * 1000),
+        };
+      });
+  }
+
+  /** Cancel a custom quote subscription immediately. */
+  async cancelQuote(subscriptionId: string) {
+    await this.client().subscriptions.cancel(subscriptionId);
+    return { id: subscriptionId, status: 'canceled' };
   }
 }

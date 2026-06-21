@@ -3,7 +3,7 @@ import { SuperAdminController } from './super-admin.controller';
 import { superAdminMiddleware } from '../../middleware/super-admin.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { authRateLimiter } from '../../middleware/rate-limit.middleware';
-import { companyIdSchema, createActivationCodeSchema, createSuperAdminSchema, setCompanyPricingSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
+import { companyIdSchema, createActivationCodeSchema, createQuoteSchema, createSuperAdminSchema, setCompanyPricingSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
 
 const router = Router();
 const controller = new SuperAdminController();
@@ -46,6 +46,27 @@ router.patch(
   superAdminMiddleware,
   validate(setCompanyPricingSchema),
   controller.setCompanyPricing
+);
+
+// Custom recurring charges ("quotes") billed monthly/biweekly via Stripe.
+router.post(
+  '/companies/:id/quote',
+  superAdminMiddleware,
+  validate(createQuoteSchema),
+  controller.createQuote
+);
+
+router.get(
+  '/companies/:id/quotes',
+  superAdminMiddleware,
+  validate(companyIdSchema),
+  controller.listQuotes
+);
+
+router.post(
+  '/quotes/:subId/cancel',
+  superAdminMiddleware,
+  controller.cancelQuote
 );
 
 router.patch(

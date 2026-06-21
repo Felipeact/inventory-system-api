@@ -17,6 +17,7 @@ import {
   LineChart,
   DollarSign,
   Users,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError, API_BASE_URL } from "@/lib/api";
@@ -101,6 +102,9 @@ export default function AdminDashboard() {
           <ShieldCheck size={20} className="text-brand-600" /> Platform Admin
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/admin/quotes" className="btn-ghost text-sm">
+            <FileText size={16} /> Quotes
+          </Link>
           <Link href="/admin/billing" className="btn-ghost text-sm">
             <LineChart size={16} /> Revenue
           </Link>

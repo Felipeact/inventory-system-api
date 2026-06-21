@@ -10,6 +10,8 @@ import type {
   ActivationCode,
   AdminAnalytics,
   AdminCompany,
+  AdminQuote,
+  CreateQuoteResult,
   BillingStatus,
   Assignment,
   Asset,
@@ -667,5 +669,22 @@ export const superAdminApi = {
       method: "PATCH",
       body: { monthlyPriceOverride },
     });
+  },
+
+  // ---- Custom recurring charges ("quotes") ----
+  async createQuote(
+    companyId: string,
+    input: { amount: number; interval: "monthly" | "biweekly"; label?: string },
+  ) {
+    return saRequest<CreateQuoteResult>(`/companies/${companyId}/quote`, {
+      method: "POST",
+      body: input,
+    });
+  },
+  async listQuotes(companyId: string) {
+    return asArray<AdminQuote>(await saRequest(`/companies/${companyId}/quotes`), "quotes");
+  },
+  async cancelQuote(subscriptionId: string) {
+    return saRequest(`/quotes/${subscriptionId}/cancel`, { method: "POST" });
   },
 };

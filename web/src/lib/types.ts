@@ -191,6 +191,27 @@ export interface ActivationCode {
   companyId?: string | null;
 }
 
+/** Super-admin: a custom recurring charge ("quote") for a company. */
+export interface AdminQuote {
+  id: string;
+  status: string;
+  amount: number;
+  interval: "monthly" | "biweekly" | "custom";
+  label: string;
+  currentPeriodEnd?: string | null;
+  createdAt?: string;
+}
+
+/** Result of creating a quote — includes a payable hosted invoice URL. */
+export interface CreateQuoteResult {
+  id: string;
+  status: string;
+  amount: number;
+  interval: "monthly" | "biweekly";
+  label: string;
+  hostedInvoiceUrl: string | null;
+}
+
 /** Super-admin: a company's billing row from /super-admin/analytics. */
 export interface BillingCompany {
   id: string;
