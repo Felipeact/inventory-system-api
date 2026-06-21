@@ -1,7 +1,7 @@
 /**
  * Pricing plan definitions (styled after the GitHub Copilot plans page).
- * Maps loosely to the backend `plan` tiers (STARTER, PRO, BUSINESS, ENTERPRISE)
- * and their maxUsers / maxProducts limits.
+ * Maps loosely to the backend `plan` tiers (PRO, BUSINESS, ENTERPRISE) and their
+ * maxUsers / maxProducts limits. There is no free tier — every plan is paid.
  */
 export interface Plan {
   id: string;
@@ -19,23 +19,6 @@ export interface Plan {
 
 export const PLANS: Plan[] = [
   {
-    id: "starter",
-    name: "Starter",
-    tagline: "For small crews getting organized.",
-    priceMonthly: 0,
-    priceAnnual: 0,
-    unit: "free forever",
-    cta: { label: "Get started", href: "/register" },
-    limits: { users: "Up to 3 users", products: "Up to 100 products" },
-    included: [
-      "Real-time inventory tracking",
-      "Barcode scan-in / scan-out",
-      "Asset register",
-      "Low-stock thresholds",
-      "1 warehouse / location",
-    ],
-  },
-  {
     id: "pro",
     name: "Pro",
     tagline: "For growing field-service teams.",
@@ -45,10 +28,10 @@ export const PLANS: Plan[] = [
     cta: { label: "Start Pro", href: "/request-demo?plan=pro" },
     limits: { users: "Up to 25 users", products: "Unlimited products" },
     included: [
-      "Everything in Starter",
+      "Real-time inventory & barcode scan-in / scan-out",
+      "Asset register & low-stock thresholds",
       "Truck-stock templates & assignments",
       "Technician mobile app (iOS & Android)",
-      "Low-stock alerts across trucks",
       "Receipt upload & reconciliation",
     ],
   },
@@ -90,10 +73,10 @@ export const PLANS: Plan[] = [
   },
 ];
 
-/** Feature comparison matrix rows for the pricing table. */
+/** Feature comparison matrix rows for the pricing table (Pro · Business · Enterprise). */
 export interface CompareRow {
   feature: string;
-  values: [string | boolean, string | boolean, string | boolean, string | boolean];
+  values: [string | boolean, string | boolean, string | boolean];
 }
 
 export interface CompareSection {
@@ -105,37 +88,37 @@ export const COMPARISON: CompareSection[] = [
   {
     category: "Inventory",
     rows: [
-      { feature: "Products", values: ["100", "Unlimited", "Unlimited", "Unlimited"] },
-      { feature: "Barcode scan in / out", values: [true, true, true, true] },
-      { feature: "Locations / warehouses", values: ["1", "5", "Unlimited", "Unlimited"] },
-      { feature: "Low-stock thresholds", values: [true, true, true, true] },
+      { feature: "Products", values: ["Unlimited", "Unlimited", "Unlimited"] },
+      { feature: "Barcode scan in / out", values: [true, true, true] },
+      { feature: "Locations / warehouses", values: ["5", "Unlimited", "Unlimited"] },
+      { feature: "Low-stock thresholds", values: [true, true, true] },
     ],
   },
   {
     category: "Truck stock",
     rows: [
-      { feature: "Stock templates", values: [false, true, true, true] },
-      { feature: "Truck assignments", values: [false, true, true, true] },
-      { feature: "Technician mobile app", values: [false, true, true, true] },
-      { feature: "Receipt reconciliation", values: [false, true, true, true] },
+      { feature: "Stock templates", values: [true, true, true] },
+      { feature: "Truck assignments", values: [true, true, true] },
+      { feature: "Technician mobile app", values: [true, true, true] },
+      { feature: "Receipt reconciliation", values: [true, true, true] },
     ],
   },
   {
     category: "Team & governance",
     rows: [
-      { feature: "Seats included", values: ["3", "25", "Unlimited", "Unlimited"] },
-      { feature: "Role-based access control", values: [false, false, true, true] },
-      { feature: "Audit logs", values: [false, false, true, true] },
-      { feature: "SSO / SAML", values: [false, false, false, true] },
+      { feature: "Seats included", values: ["25", "Unlimited", "Unlimited"] },
+      { feature: "Role-based access control", values: [false, true, true] },
+      { feature: "Audit logs", values: [false, true, true] },
+      { feature: "SSO / SAML", values: [false, false, true] },
     ],
   },
   {
     category: "Reporting & support",
     rows: [
-      { feature: "PDF / Excel exports", values: [false, true, true, true] },
-      { feature: "Scheduled reports", values: [false, false, true, true] },
-      { feature: "Support", values: ["Community", "Email", "Priority", "Dedicated CSM"] },
-      { feature: "Uptime SLA", values: [false, false, false, "99.9%"] },
+      { feature: "PDF / Excel exports", values: [true, true, true] },
+      { feature: "Scheduled reports", values: [false, true, true] },
+      { feature: "Support", values: ["Email", "Priority", "Dedicated CSM"] },
+      { feature: "Uptime SLA", values: [false, false, "99.9%"] },
     ],
   },
 ];
@@ -151,7 +134,7 @@ export const FAQS = [
   },
   {
     q: "Can I try StockPilot before committing?",
-    a: "Start on the free Starter plan instantly, or request a personalized demo and we'll set up a guided trial with sample data for your trade.",
+    a: "Request a personalized demo and we'll set up a guided trial with sample data for your trade, so you can see it in action before you subscribe.",
   },
   {
     q: "What happens to my data if I cancel?",

@@ -19,7 +19,6 @@ import { AppError } from '../../core/app-error';
 import { env, billingEnabled } from '../../config/env';
 import {
   SELF_SERVE_PLANS,
-  STARTER_LIMITS,
   planForPriceId,
 } from './billing.config';
 
@@ -185,7 +184,7 @@ export class BillingService {
         break;
       }
       case 'customer.subscription.deleted': {
-        await this.downgradeToFree(event.data.object as Stripe.Subscription);
+        await this.lapseSubscription(event.data.object as Stripe.Subscription);
         break;
       }
       default:
@@ -221,9 +220,9 @@ export class BillingService {
       return;
     }
 
-    // A canceled/unpaid subscription means the company loses its paid plan.
+    // A canceled/unpaid subscription means the company loses access.
     if (!['active', 'trialing'].includes(subscription.status)) {
-      await this.downgradeToFree(subscription);
+      await this.lapseSubscription(subscription);
       return;
     }
 
@@ -253,24 +252,25 @@ export class BillingService {
     logger.info({ companyId, plan }, 'Applied Stripe subscription to company');
   }
 
-  /** Drop the company back to the free Starter tier (keeps it usable, not locked out). */
-  private async downgradeToFree(subscription: Stripe.Subscription): Promise<void> {
+  /**
+   * Suspend the company when its paid subscription ends. There is no free tier, so
+   * the company is marked INACTIVE (the subscription middleware then blocks premium
+   * features) until it re-subscribes. Its plan and data are preserved.
+   */
+  private async lapseSubscription(subscription: Stripe.Subscription): Promise<void> {
     const companyId = await this.companyIdFor(subscription);
     if (!companyId) return;
 
     await prisma.company.update({
       where: { id: companyId },
       data: {
-        plan: 'STARTER',
-        subscriptionStatus: 'ACTIVE',
-        maxUsers: STARTER_LIMITS.maxUsers,
-        maxProducts: STARTER_LIMITS.maxProducts,
+        subscriptionStatus: 'INACTIVE',
         stripeSubscriptionId: null,
         currentPeriodEnd: null,
       },
     });
 
-    logger.info({ companyId }, 'Company downgraded to free tier after subscription end');
+    logger.info({ companyId }, 'Company subscription lapsed — access suspended');
   }
 
   /** Read the current period end from the subscription (or its first item), as a Date. */

@@ -17,7 +17,7 @@ import { PLANS } from "@/lib/plans";
 import type { BillingStatus } from "@/lib/types";
 import { PageHeader, Badge } from "@/components/app/ui";
 
-/** Plans sold self-serve through Stripe (Starter is free, Enterprise is contact-sales). */
+/** Plans sold self-serve through Stripe (Enterprise is contact-sales). */
 const SELF_SERVE = ["pro", "business"] as const;
 
 export default function BillingPage() {
@@ -87,7 +87,7 @@ function BillingPageInner() {
     }
   }
 
-  const currentPlan = (status?.plan ?? "STARTER").toUpperCase();
+  const currentPlan = (status?.plan ?? "").toUpperCase();
 
   return (
     <div>

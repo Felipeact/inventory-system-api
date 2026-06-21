@@ -20,7 +20,7 @@ import { superAdminApi, superAdminStore, ApiError, API_BASE_URL } from "@/lib/ap
 import type { ActivationCode, AdminCompany } from "@/lib/types";
 import { Badge } from "@/components/app/ui";
 
-const PLANS = ["STARTER", "PRO", "BUSINESS", "ENTERPRISE"];
+const PLANS = ["PRO", "BUSINESS", "ENTERPRISE"];
 
 /** Random, readable activation code like ABCD-1234-EFGH. */
 function randomCode() {
