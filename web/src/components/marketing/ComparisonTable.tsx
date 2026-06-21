@@ -43,7 +43,7 @@ export function ComparisonTable() {
                 <Fragment key={section.category}>
                   <tr>
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="bg-ink-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-ink-500"
                     >
                       {section.category}

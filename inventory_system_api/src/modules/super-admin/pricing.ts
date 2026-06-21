@@ -1,26 +1,16 @@
 /**
  * @file pricing.ts
- * @description Platform pricing model used to derive revenue from companies. Mirrors the
- * marketing pricing in web/src/lib/plans.ts. The per-seat prices here are the monthly
- * list prices; a company may also carry a flat `monthlyPriceOverride` (custom/Enterprise
- * deals) which takes precedence over per-seat pricing.
- *
- * Keep this in sync with web/src/lib/plans.ts when prices change.
+ * @description Derives company revenue from the central plan catalog (config/plans.ts).
+ * The per-seat prices here come straight from that catalog; a company may also carry a
+ * flat `monthlyPriceOverride` (custom/Enterprise deals) which takes precedence.
  */
 
-/** Monthly list price per active user, per plan. `null` = custom (no list price). */
-export const PLAN_MONTHLY_PRICE_PER_SEAT: Record<string, number | null> = {
-  STARTER: 0,
-  PRO: 29,
-  BUSINESS: 59,
-  ENTERPRISE: null,
-};
+import { PLAN_CATALOG, planDef } from '../../config/plans';
 
-/** Normalize an arbitrary plan string to a known key (defaults to STARTER). */
-function planKey(plan: string | null | undefined): string {
-  const key = String(plan ?? '').toUpperCase();
-  return key in PLAN_MONTHLY_PRICE_PER_SEAT ? key : 'STARTER';
-}
+/** Monthly list price per active user, per plan (from the catalog). `null` = custom. */
+export const PLAN_MONTHLY_PRICE_PER_SEAT: Record<string, number | null> = Object.fromEntries(
+  Object.values(PLAN_CATALOG).map((p) => [p.key, p.pricePerSeat]),
+);
 
 export interface CompanyBilling {
   /** Per-seat list price for the plan, or null for custom-priced plans. */
@@ -43,7 +33,7 @@ export function computeCompanyBilling(
   seats: number,
   monthlyPriceOverride: number | null | undefined,
 ): CompanyBilling {
-  const pricePerSeat = PLAN_MONTHLY_PRICE_PER_SEAT[planKey(plan)];
+  const pricePerSeat = planDef(plan).pricePerSeat;
   const override =
     typeof monthlyPriceOverride === 'number' ? monthlyPriceOverride : null;
 

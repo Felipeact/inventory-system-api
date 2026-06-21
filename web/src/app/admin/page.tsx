@@ -18,9 +18,10 @@ import {
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError, API_BASE_URL } from "@/lib/api";
 import type { ActivationCode, AdminCompany } from "@/lib/types";
+import { PLAN_LIMITS, formatLimit } from "@/lib/plans";
 import { Badge } from "@/components/app/ui";
 
-const PLANS = ["PRO", "BUSINESS", "ENTERPRISE"];
+const PLANS = ["STARTER", "PRO", "BUSINESS", "ENTERPRISE"];
 
 /** Random, readable activation code like ABCD-1234-EFGH. */
 function randomCode() {
@@ -143,12 +144,13 @@ export default function AdminDashboard() {
 
 function CreateCodeCard({ onCreated }: { onCreated: () => void }) {
   const [code, setCode] = useState(randomCode());
-  const [plan, setPlan] = useState("PRO");
-  const [maxUsers, setMaxUsers] = useState(25);
-  const [maxProducts, setMaxProducts] = useState(5000);
+  const [plan, setPlan] = useState("STARTER");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [created, setCreated] = useState<string | null>(null);
+
+  // Limits + AI follow the chosen plan automatically (single source of truth).
+  const limits = PLAN_LIMITS[plan];
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,7 +158,7 @@ function CreateCodeCard({ onCreated }: { onCreated: () => void }) {
     setCreated(null);
     setBusy(true);
     try {
-      await superAdminApi.createCode({ code: code.trim(), plan, maxUsers, maxProducts });
+      await superAdminApi.createCode({ code: code.trim(), plan });
       setCreated(code.trim());
       setCode(randomCode());
       onCreated();
@@ -171,8 +173,8 @@ function CreateCodeCard({ onCreated }: { onCreated: () => void }) {
     <section className="card p-6">
       <h2 className="text-base font-semibold text-ink-900">Create an activation code</h2>
       <p className="mt-1 text-sm text-ink-500">
-        Share this code with a company so they can register at{" "}
-        <code className="font-mono text-xs">/register</code>.
+        Pick a plan — the user and product limits are set automatically. Share the code
+        so a company can register at <code className="font-mono text-xs">/register</code>.
       </p>
       <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2">
@@ -192,28 +194,12 @@ function CreateCodeCard({ onCreated }: { onCreated: () => void }) {
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="label">Max users</label>
-            <input
-              type="number"
-              min={1}
-              className="input"
-              value={maxUsers}
-              onChange={(e) => setMaxUsers(Number(e.target.value))}
-              required
-            />
-          </div>
-          <div>
-            <label className="label">Max products</label>
-            <input
-              type="number"
-              min={1}
-              className="input"
-              value={maxProducts}
-              onChange={(e) => setMaxProducts(Number(e.target.value))}
-              required
-            />
+        <div>
+          <label className="label">Limits (auto)</label>
+          <div className="input flex h-[42px] items-center bg-ink-50 text-sm text-ink-600">
+            {limits
+              ? `${formatLimit(limits.maxUsers)} users · ${formatLimit(limits.maxProducts)} products · AI ${limits.ai ? "✓" : "✕"}`
+              : "—"}
           </div>
         </div>
 

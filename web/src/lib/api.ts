@@ -631,12 +631,8 @@ export const superAdminApi = {
   async listCodes() {
     return asArray<ActivationCode>(await saRequest("/activation-codes"), "codes");
   },
-  async createCode(input: {
-    code: string;
-    plan: string;
-    maxUsers: number;
-    maxProducts: number;
-  }) {
+  async createCode(input: { code: string; plan: string }) {
+    // Limits + AI are derived from the plan server-side (single source of truth).
     return saRequest<ActivationCode>("/activation-codes", { method: "POST", body: input });
   },
   async deactivateCode(id: string) {

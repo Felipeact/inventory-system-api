@@ -18,7 +18,7 @@ import type { BillingStatus } from "@/lib/types";
 import { PageHeader, Badge } from "@/components/app/ui";
 
 /** Plans sold self-serve through Stripe (Enterprise is contact-sales). */
-const SELF_SERVE = ["pro", "business"] as const;
+const SELF_SERVE = ["starter", "pro", "business"] as const;
 
 export default function BillingPage() {
   return (

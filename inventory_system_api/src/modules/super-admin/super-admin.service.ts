@@ -6,6 +6,7 @@ import { generateSuperAdminToken } from '../../utils/jwt';
 import { env } from '../../config/env';
 import { EmailService } from '../email/email.service';
 import { PLAN_MONTHLY_PRICE_PER_SEAT, computeCompanyBilling } from './pricing';
+import { PLAN_CATALOG } from '../../config/plans';
 
 /** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
 const BCRYPT_ROUNDS = 12;
@@ -69,20 +70,25 @@ export class SuperAdminService {
     }
 
     async createActivationCode(dto: any) {
-        const { code, plan, maxUsers, maxProducts } = dto;
+        const { code, plan } = dto;
 
-        if (!code || !plan || !maxUsers || !maxProducts) {
-            throw new AppError(
-                'code, plan, maxUsers and maxProducts are required',
-                400
-            );
+        if (!code || !plan) {
+            throw new AppError('code and plan are required', 400);
         }
 
+        const key = String(plan).toUpperCase();
+        const def = PLAN_CATALOG[key];
+        if (!def) {
+            throw new AppError(`Unknown plan "${plan}"`, 400);
+        }
+
+        // Limits are derived from the plan catalog — not entered by hand — so the
+        // company created from this code automatically gets the right caps.
         return this.repo.createActivationCode({
             code: code.trim(),
-            plan: plan.toUpperCase(),
-            maxUsers: Number(maxUsers),
-            maxProducts: Number(maxProducts)
+            plan: def.key,
+            maxUsers: def.maxUsers,
+            maxProducts: def.maxProducts
         });
     }
 
@@ -139,20 +145,27 @@ export class SuperAdminService {
     }
 
     updateCompanyPlan(companyId: string, dto: any) {
-        const { plan, maxUsers, maxProducts } = dto;
+        const { plan } = dto;
 
         if (!companyId) {
             throw new AppError('companyId is required', 400);
         }
 
-        if (!plan || !maxUsers || !maxProducts) {
-            throw new AppError('plan, maxUsers and maxProducts are required', 400);
+        if (!plan) {
+            throw new AppError('plan is required', 400);
         }
 
+        const key = String(plan).toUpperCase();
+        const def = PLAN_CATALOG[key];
+        if (!def) {
+            throw new AppError(`Unknown plan "${plan}"`, 400);
+        }
+
+        // Limits follow the chosen plan automatically (no manual max users/products).
         return this.repo.updateCompanyPlan(companyId, {
-            plan: plan.toUpperCase(),
-            maxUsers: Number(maxUsers),
-            maxProducts: Number(maxProducts)
+            plan: def.key,
+            maxUsers: def.maxUsers,
+            maxProducts: def.maxProducts
         });
     }
 

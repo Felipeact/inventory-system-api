@@ -75,8 +75,12 @@ export default function AssistantPage() {
       {enabled === false && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertCircle size={16} />
-          The AI assistant isn&apos;t enabled yet. An admin needs to set{" "}
-          <code className="font-mono">ANTHROPIC_API_KEY</code> on the API.
+          The AI assistant isn&apos;t available on your plan. It&apos;s included on{" "}
+          <strong>Pro and above</strong> — upgrade from{" "}
+          <a href="/billing" className="font-medium underline">
+            Billing
+          </a>{" "}
+          to enable it.
         </div>
       )}
 

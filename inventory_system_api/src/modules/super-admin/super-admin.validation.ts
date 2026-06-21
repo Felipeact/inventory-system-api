@@ -18,8 +18,10 @@ export const createActivationCodeSchema = z.object({
   body: z.object({
     code: z.string().min(3, 'Code must be at least 3 characters'),
     plan: z.string().min(1, 'Plan is required'),
-    maxUsers: z.number().min(1, 'maxUsers must be at least 1'),
-    maxProducts: z.number().min(1, 'maxProducts must be at least 1')
+    // Limits are derived from the plan catalog server-side; accepted but ignored
+    // if sent, so older clients don't break.
+    maxUsers: z.number().optional(),
+    maxProducts: z.number().optional()
   })
 });
 
@@ -29,8 +31,9 @@ export const updateCompanyPlanSchema = z.object({
   }),
   body: z.object({
     plan: z.string().min(1, 'Plan is required'),
-    maxUsers: z.number().min(1, 'maxUsers must be at least 1'),
-    maxProducts: z.number().min(1, 'maxProducts must be at least 1')
+    // Derived from the plan catalog server-side; optional for back-compat.
+    maxUsers: z.number().optional(),
+    maxProducts: z.number().optional()
   })
 });
 
