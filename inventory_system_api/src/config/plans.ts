@@ -17,6 +17,8 @@ export interface PlanDef {
   name: string;
   /** Monthly price per seat (USD). null = custom / contact-sales. */
   pricePerSeat: number | null;
+  /** One-time implementation / onboarding fee (USD). null = custom. */
+  onboardingFee: number | null;
   maxUsers: number;
   maxProducts: number;
   /** Whether the in-app AI assistant is included on this plan. */
@@ -24,14 +26,17 @@ export interface PlanDef {
 }
 
 /**
- * The four tiers. Starter is the paid entry plan (no AI, small caps); AI is included
- * from Pro upward. Prices are per active user, per month.
+ * The four tiers, priced for the field-service software market (typically
+ * $60–$350+ per user/month). Starter is the paid entry plan (no AI, small caps);
+ * AI is included from Pro upward. Prices are per active user, per month, plus a
+ * one-time onboarding fee. Enterprise is custom.
  */
 export const PLAN_CATALOG: Record<string, PlanDef> = {
   STARTER: {
     key: 'STARTER',
     name: 'Starter',
-    pricePerSeat: 24,
+    pricePerSeat: 99,
+    onboardingFee: 500,
     maxUsers: 5,
     maxProducts: 250,
     aiEnabled: false,
@@ -39,7 +44,8 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
   PRO: {
     key: 'PRO',
     name: 'Pro',
-    pricePerSeat: 39,
+    pricePerSeat: 150,
+    onboardingFee: 1500,
     maxUsers: 25,
     maxProducts: UNLIMITED,
     aiEnabled: true,
@@ -47,7 +53,8 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
   BUSINESS: {
     key: 'BUSINESS',
     name: 'Business',
-    pricePerSeat: 59,
+    pricePerSeat: 250,
+    onboardingFee: 3000,
     maxUsers: UNLIMITED,
     maxProducts: UNLIMITED,
     aiEnabled: true,
@@ -56,6 +63,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
     key: 'ENTERPRISE',
     name: 'Enterprise',
     pricePerSeat: null,
+    onboardingFee: null,
     maxUsers: UNLIMITED,
     maxProducts: UNLIMITED,
     aiEnabled: true,

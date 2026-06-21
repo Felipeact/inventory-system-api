@@ -31,12 +31,12 @@ export function Hero() {
               Request a demo <ArrowRight size={18} />
             </Link>
             <Link href="/register" className="btn-secondary px-5 py-3 text-base">
-              Start free
+              Get started
             </Link>
           </div>
           <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-ink-500">
             <span className="inline-flex items-center gap-2">
-              <ShieldCheck size={16} className="text-brand-600" /> No credit card required
+              <ShieldCheck size={16} className="text-brand-600" /> Guided onboarding included
             </span>
             <span className="inline-flex items-center gap-2">
               <ScanLine size={16} className="text-brand-600" /> Live in under a day

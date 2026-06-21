@@ -15,10 +15,19 @@ import {
   Building2,
   KeyRound,
   LineChart,
+  DollarSign,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError, API_BASE_URL } from "@/lib/api";
-import type { ActivationCode, AdminCompany } from "@/lib/types";
+import type { ActivationCode, AdminCompany, AdminAnalytics } from "@/lib/types";
 import { PLAN_LIMITS, formatLimit } from "@/lib/plans";
+
+const usd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
 import { Badge } from "@/components/app/ui";
 
 const PLANS = ["STARTER", "PRO", "BUSINESS", "ENTERPRISE"];
@@ -36,6 +45,7 @@ export default function AdminDashboard() {
   const [ready, setReady] = useState(false);
   const [codes, setCodes] = useState<ActivationCode[]>([]);
   const [companies, setCompanies] = useState<AdminCompany[]>([]);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +53,14 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [c, co] = await Promise.all([
+      const [c, co, an] = await Promise.all([
         superAdminApi.listCodes(),
         superAdminApi.listCompanies(),
+        superAdminApi.analytics(),
       ]);
       setCodes(c);
       setCompanies(co);
+      setAnalytics(an);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         router.replace("/admin/login");
@@ -101,7 +113,7 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-8 p-5 sm:p-8">
+      <main className="mx-auto max-w-6xl space-y-8 p-5 sm:p-8">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink-900">Operator console</h1>
           <p className="mt-1 text-sm text-ink-500">
@@ -113,6 +125,35 @@ export default function AdminDashboard() {
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p>
         )}
+
+        {/* KPIs */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Kpi
+            icon={Building2}
+            label="Companies"
+            value={String(analytics?.metrics.totalCompanies ?? companies.length)}
+            hint={`${analytics?.metrics.activeCompanies ?? companies.filter((c) => c.subscriptionStatus === "ACTIVE").length} active`}
+          />
+          <Kpi
+            icon={Users}
+            label="Paid seats"
+            value={String(analytics?.metrics.activeSeats ?? "—")}
+            hint="across active customers"
+          />
+          <Kpi
+            icon={DollarSign}
+            label="MRR"
+            value={analytics ? usd.format(analytics.metrics.mrr) : "—"}
+            hint={analytics ? `${usd.format(analytics.metrics.arr)} ARR` : undefined}
+            tone="brand"
+          />
+          <Kpi
+            icon={KeyRound}
+            label="Codes available"
+            value={String(codes.filter((c) => !c.isUsed && c.isActive).length)}
+            hint={`${codes.length} total`}
+          />
+        </div>
 
         <CreateCodeCard onCreated={load} />
 
@@ -138,6 +179,32 @@ export default function AdminDashboard() {
           )}
         </section>
       </main>
+    </div>
+  );
+}
+
+function Kpi({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone = "default",
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "default" | "brand";
+}) {
+  return (
+    <div className="card p-5">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-ink-400">
+        <Icon size={14} /> {label}
+      </div>
+      <p className={`mt-2 text-2xl font-bold tracking-tight ${tone === "brand" ? "text-brand-700" : "text-ink-900"}`}>
+        {value}
+      </p>
+      {hint && <p className="mt-1 text-xs text-ink-400">{hint}</p>}
     </div>
   );
 }
@@ -308,20 +375,35 @@ function CompaniesTable({ companies, onChanged }: { companies: AdminCompany[]; o
           <tr className="border-b border-ink-100 text-left text-xs uppercase tracking-wide text-ink-400">
             <th className="px-4 py-3">Company</th>
             <th className="px-4 py-3">Plan</th>
-            <th className="px-4 py-3">Users</th>
+            <th className="px-4 py-3">Seats</th>
+            <th className="px-4 py-3">Joined</th>
             <th className="px-4 py-3">Status</th>
-            <th className="px-4 py-3" />
+            <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {companies.map((co) => {
             const active = co.subscriptionStatus === "ACTIVE";
+            const seats = co.users?.length ?? 0;
+            const atCap = co.maxUsers > 0 && seats >= co.maxUsers && co.maxUsers < 1_000_000;
             return (
               <tr key={co.id} className="border-b border-ink-50 last:border-0">
-                <td className="px-4 py-3 font-medium text-ink-900">{co.name}</td>
-                <td className="px-4 py-3">{co.plan}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium text-ink-900">{co.name}</div>
+                  <div className="text-xs text-ink-400">
+                    {PLAN_LIMITS[co.plan]?.ai ? "AI included" : "No AI"}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <PlanSelect company={co} onChanged={onChanged} />
+                </td>
+                <td className="px-4 py-3 text-ink-600">
+                  <span className={atCap ? "font-medium text-amber-600" : ""}>
+                    {seats} / {formatLimit(co.maxUsers)}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-ink-500">
-                  {(co.users?.length ?? 0)} / {co.maxUsers}
+                  {co.createdAt ? new Date(co.createdAt).toLocaleDateString() : "—"}
                 </td>
                 <td className="px-4 py-3">
                   {active ? <Badge tone="good">Active</Badge> : <Badge tone="warn">Inactive</Badge>}
@@ -335,7 +417,7 @@ function CompaniesTable({ companies, onChanged }: { companies: AdminCompany[]; o
                       onChanged();
                     }}
                   >
-                    {active ? "Deactivate" : "Activate"}
+                    {active ? "Suspend" : "Activate"}
                   </button>
                 </td>
               </tr>
@@ -343,6 +425,38 @@ function CompaniesTable({ companies, onChanged }: { companies: AdminCompany[]; o
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Inline plan changer — choosing a plan auto-applies its user/product limits + AI. */
+function PlanSelect({ company, onChanged }: { company: AdminCompany; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        className="input h-9 w-32 text-sm"
+        value={company.plan}
+        disabled={busy}
+        onChange={async (e) => {
+          const plan = e.target.value;
+          if (plan === company.plan) return;
+          setBusy(true);
+          try {
+            await superAdminApi.updateCompanyPlan(company.id, plan);
+            onChanged();
+          } catch {
+            /* surfaced on next load */
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {PLANS.map((p) => (
+          <option key={p}>{p}</option>
+        ))}
+      </select>
+      {busy && <Loader2 size={14} className="animate-spin text-ink-400" />}
     </div>
   );
 }

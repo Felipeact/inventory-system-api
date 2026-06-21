@@ -26,7 +26,7 @@ export function CtaBand() {
                 href="/register"
                 className="btn border border-white/30 px-6 py-3 text-base text-white hover:bg-white/10"
               >
-                Start free
+                Get started
               </Link>
             </div>
           </div>

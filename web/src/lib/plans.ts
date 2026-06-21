@@ -11,6 +11,8 @@ export interface Plan {
   priceMonthly: number | null; // null = custom/contact sales
   priceAnnual: number | null;
   unit: string;
+  /** One-time implementation / onboarding fee (USD). null = custom. */
+  onboardingFee: number | null;
   badge?: string;
   highlighted?: boolean;
   cta: { label: string; href: string };
@@ -23,9 +25,10 @@ export const PLANS: Plan[] = [
     id: "starter",
     name: "Starter",
     tagline: "For small crews getting organized.",
-    priceMonthly: 24,
-    priceAnnual: 20,
+    priceMonthly: 99,
+    priceAnnual: 82,
     unit: "per user / month",
+    onboardingFee: 500,
     cta: { label: "Start Starter", href: "/request-demo?plan=starter" },
     limits: { users: "Up to 5 users", products: "Up to 250 products" },
     included: [
@@ -40,9 +43,12 @@ export const PLANS: Plan[] = [
     id: "pro",
     name: "Pro",
     tagline: "For growing field-service teams.",
-    priceMonthly: 39,
-    priceAnnual: 32,
+    priceMonthly: 150,
+    priceAnnual: 125,
     unit: "per user / month",
+    onboardingFee: 1500,
+    badge: "Most popular",
+    highlighted: true,
     cta: { label: "Start Pro", href: "/request-demo?plan=pro" },
     limits: { users: "Up to 25 users", products: "Unlimited products" },
     included: [
@@ -57,11 +63,10 @@ export const PLANS: Plan[] = [
     id: "business",
     name: "Business",
     tagline: "For multi-truck operations at scale.",
-    priceMonthly: 59,
-    priceAnnual: 49,
+    priceMonthly: 250,
+    priceAnnual: 208,
     unit: "per user / month",
-    badge: "Best value",
-    highlighted: true,
+    onboardingFee: 3000,
     cta: { label: "Request a demo", href: "/request-demo?plan=business" },
     limits: { users: "Unlimited users", products: "Unlimited products" },
     included: [
@@ -79,6 +84,7 @@ export const PLANS: Plan[] = [
     priceMonthly: null,
     priceAnnual: null,
     unit: "custom pricing",
+    onboardingFee: null,
     cta: { label: "Contact sales", href: "/request-demo?plan=enterprise" },
     limits: { users: "Unlimited users", products: "Unlimited products" },
     included: [
@@ -98,18 +104,34 @@ export const PLANS: Plan[] = [
  */
 export const PLAN_LIMITS: Record<
   string,
-  { maxUsers: number; maxProducts: number; ai: boolean; pricePerSeat: number | null }
+  {
+    maxUsers: number;
+    maxProducts: number;
+    ai: boolean;
+    pricePerSeat: number | null;
+    onboardingFee: number | null;
+  }
 > = {
-  STARTER: { maxUsers: 5, maxProducts: 250, ai: false, pricePerSeat: 24 },
-  PRO: { maxUsers: 25, maxProducts: Infinity, ai: true, pricePerSeat: 39 },
-  BUSINESS: { maxUsers: Infinity, maxProducts: Infinity, ai: true, pricePerSeat: 59 },
-  ENTERPRISE: { maxUsers: Infinity, maxProducts: Infinity, ai: true, pricePerSeat: null },
+  STARTER: { maxUsers: 5, maxProducts: 250, ai: false, pricePerSeat: 99, onboardingFee: 500 },
+  PRO: { maxUsers: 25, maxProducts: Infinity, ai: true, pricePerSeat: 150, onboardingFee: 1500 },
+  BUSINESS: { maxUsers: Infinity, maxProducts: Infinity, ai: true, pricePerSeat: 250, onboardingFee: 3000 },
+  ENTERPRISE: { maxUsers: Infinity, maxProducts: Infinity, ai: true, pricePerSeat: null, onboardingFee: null },
 };
 
 /** Format a limit number for display ("Unlimited" for the effectively-unlimited ceiling). */
 export function formatLimit(n: number): string {
   return !Number.isFinite(n) || n >= 1_000_000 ? "Unlimited" : String(n);
 }
+
+/**
+ * Standard per-seat rate used for the "estimated monthly cost" examples on the
+ * pricing page (the Pro / most-popular plan). Mirrors typical field-service
+ * software pricing (~$150 per user / month).
+ */
+export const STANDARD_SEAT_PRICE = 150;
+
+/** Team sizes shown in the estimated-cost example table. */
+export const ESTIMATE_TEAM_SIZES = [5, 10, 25, 50];
 
 /** Feature comparison matrix rows for the pricing table (Starter · Pro · Business · Enterprise). */
 export interface CompareRow {

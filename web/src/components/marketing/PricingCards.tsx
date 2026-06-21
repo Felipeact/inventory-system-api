@@ -74,6 +74,11 @@ export function PricingCards() {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-ink-500">{plan.unit}</p>
+                <p className="mt-1 text-xs text-ink-400">
+                  {plan.onboardingFee === null
+                    ? "Custom onboarding"
+                    : `+ ${formatCurrency(plan.onboardingFee)} one-time onboarding`}
+                </p>
               </div>
 
               <Link

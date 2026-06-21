@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PricingCards } from "@/components/marketing/PricingCards";
+import { EstimatedCost } from "@/components/marketing/EstimatedCost";
 import { ComparisonTable } from "@/components/marketing/ComparisonTable";
 import { Faq } from "@/components/marketing/Faq";
 import { CtaBand } from "@/components/marketing/CtaBand";
@@ -8,7 +9,7 @@ import { Smartphone, Monitor, Server, Boxes } from "lucide-react";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Simple per-user pricing for inventory and truck-stock management. Start free, scale to unlimited users and trucks.",
+    "Per-user pricing for inventory and truck-stock management, built for field-service teams. Plans from $99/user, scaling to unlimited users and trucks.",
 };
 
 const PLATFORMS = [
@@ -31,8 +32,8 @@ export default function PricingPage() {
             Pricing that scales with your crew
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-ink-600">
-            Start free and upgrade when you're ready to put every truck on a template.
-            Per-user pricing, no setup fees, cancel anytime.
+            Straightforward per-user pricing for field-service teams. Pick a plan,
+            roll out to every truck, and cancel anytime.
           </p>
         </div>
       </section>
@@ -60,6 +61,7 @@ export default function PricingPage() {
         </div>
       </section>
 
+      <EstimatedCost />
       <ComparisonTable />
       <Faq />
       <CtaBand />

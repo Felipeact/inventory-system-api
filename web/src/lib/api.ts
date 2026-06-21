@@ -649,11 +649,9 @@ export const superAdminApi = {
   async deactivateCompany(id: string) {
     return saRequest(`/companies/${id}/deactivate`, { method: "PATCH" });
   },
-  async updateCompanyPlan(
-    id: string,
-    input: { plan: string; maxUsers: number; maxProducts: number },
-  ) {
-    return saRequest(`/companies/${id}/plan`, { method: "PATCH", body: input });
+  async updateCompanyPlan(id: string, plan: string) {
+    // Limits + AI follow the plan automatically (single source of truth).
+    return saRequest(`/companies/${id}/plan`, { method: "PATCH", body: { plan } });
   },
 
   // ---- Revenue analytics ----
