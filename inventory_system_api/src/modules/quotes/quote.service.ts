@@ -94,12 +94,26 @@ export class QuoteService {
       throw new AppError('setupFee must be 0 or a positive number (USD).', 400);
     }
 
+    // Entitlement caps: default to the plan's catalog caps; allow a per-deal override.
+    const resolveLimit = (raw: unknown, fallback: number): number => {
+      if (raw == null || raw === '') return fallback;
+      const n = Math.floor(Number(raw));
+      if (!Number.isFinite(n) || n < 1) {
+        throw new AppError('Seat/product limits must be a whole number of 1 or more.', 400);
+      }
+      return n;
+    };
+    const maxUsers = resolveLimit(dto?.maxUsers, def.maxUsers);
+    const maxProducts = resolveLimit(dto?.maxProducts, def.maxProducts);
+
     return prisma.quote.create({
       data: {
         companyName,
         contactEmail,
         plan: def.key,
         seats,
+        maxUsers,
+        maxProducts,
         amount,
         interval,
         description: dto?.description ? String(dto.description).trim() : null,
@@ -229,15 +243,16 @@ export class QuoteService {
     const subscriptionId =
       typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
 
-    // Issue the activation code carrying the plan's limits (single source of truth).
+    // Issue the activation code carrying this quote's caps (which default to the
+    // plan's catalog caps but may have been overridden for the deal).
     const def = planDef(quote.plan);
     const code = this.generateCode();
     const activation = await prisma.activationCode.create({
       data: {
         code,
         plan: def.key,
-        maxUsers: def.maxUsers,
-        maxProducts: def.maxProducts,
+        maxUsers: quote.maxUsers ?? def.maxUsers,
+        maxProducts: quote.maxProducts ?? def.maxProducts,
         isActive: true,
         isUsed: false,
       },

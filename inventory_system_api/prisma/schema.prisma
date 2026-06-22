@@ -192,6 +192,10 @@ model Quote {
 
   plan        String @default("PRO")
   seats       Int    @default(1)
+  // Entitlement caps applied to the company when the issued code is used. Default
+  // to the plan's catalog caps; the operator can override them per deal.
+  maxUsers    Int?
+  maxProducts Int?
   // Recurring amount actually billed each cycle (USD). Defaults from the plan
   // catalog (per-seat × seats) but the operator may override it.
   amount      Float

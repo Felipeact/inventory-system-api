@@ -63,6 +63,8 @@ export const createDealSchema = z.object({
     contactEmail: z.string().email('A valid contact email is required'),
     plan: z.string().min(1, 'Plan is required'),
     seats: z.number().int().positive().optional(),
+    maxUsers: z.number().int().positive('maxUsers must be 1 or more').optional(),
+    maxProducts: z.number().int().positive('maxProducts must be 1 or more').optional(),
     amount: z.number().positive('amount must be greater than 0').optional(),
     interval: z.enum(['monthly', 'biweekly']).optional(),
     description: z.string().max(500).optional(),

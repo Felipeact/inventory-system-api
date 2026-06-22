@@ -224,6 +224,9 @@ export interface Deal {
   contactEmail: string;
   plan: string;
   seats: number;
+  /** Entitlement caps applied to the company on registration (default to plan caps). */
+  maxUsers?: number | null;
+  maxProducts?: number | null;
   amount: number;
   interval: "monthly" | "biweekly";
   description?: string | null;

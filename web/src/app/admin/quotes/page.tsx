@@ -20,11 +20,16 @@ import {
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError } from "@/lib/api";
 import type { Deal } from "@/lib/types";
-import { PLAN_LIMITS } from "@/lib/plans";
+import { PLAN_LIMITS, formatLimit } from "@/lib/plans";
 import { Badge } from "@/components/app/ui";
 
 const usd = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const PLAN_OPTIONS = ["STARTER", "PRO", "BUSINESS", "ENTERPRISE"] as const;
+
+/** A plan cap as an input value: a finite number, or "" for unlimited. */
+function capToInput(n: number): string {
+  return Number.isFinite(n) && n < 1_000_000 ? String(n) : "";
+}
 
 export default function QuotesPage() {
   const router = useRouter();
@@ -122,7 +127,9 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
   const [companyName, setCompanyName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [plan, setPlan] = useState<(typeof PLAN_OPTIONS)[number]>("PRO");
-  const [seats, setSeats] = useState(5);
+  // Limit inputs hold a string so an empty value means "Unlimited" (no cap).
+  const [maxUsers, setMaxUsers] = useState(() => capToInput(PLAN_LIMITS.PRO.maxUsers));
+  const [maxProducts, setMaxProducts] = useState(() => capToInput(PLAN_LIMITS.PRO.maxProducts));
   const [interval, setInterval] = useState<"monthly" | "biweekly">("monthly");
   const [description, setDescription] = useState("");
   const [setupFee, setSetupFee] = useState<number>(PLAN_LIMITS.PRO.onboardingFee ?? 0);
@@ -135,10 +142,12 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
   const computed = planPrice; // flat monthly price for the plan
   const effectiveAmount = amountOverride !== "" ? Number(amountOverride) : computed;
 
-  // When the operator switches plans, suggest that plan's onboarding fee and re-derive price.
+  // Switching plans re-derives the price, onboarding fee, and the seat/product caps.
   function choosePlan(next: (typeof PLAN_OPTIONS)[number]) {
     setPlan(next);
     setSetupFee(PLAN_LIMITS[next]?.onboardingFee ?? 0);
+    setMaxUsers(capToInput(PLAN_LIMITS[next]?.maxUsers ?? Infinity));
+    setMaxProducts(capToInput(PLAN_LIMITS[next]?.maxProducts ?? Infinity));
     setAmountOverride("");
   }
 
@@ -156,7 +165,9 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
         companyName: companyName.trim(),
         contactEmail: contactEmail.trim(),
         plan,
-        seats,
+        // Empty = unlimited (omit so the backend applies the plan's default cap).
+        maxUsers: maxUsers.trim() !== "" ? Math.max(1, Number(maxUsers)) : undefined,
+        maxProducts: maxProducts.trim() !== "" ? Math.max(1, Number(maxProducts)) : undefined,
         interval,
         amount: amountOverride !== "" ? Number(amountOverride) : undefined,
         description: description.trim() || undefined,
@@ -222,14 +233,28 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
           </select>
         </div>
         <div>
-          <label className="label">Seats</label>
+          <label className="label">Max users</label>
           <input
             type="number"
             min={1}
             className="input"
-            value={seats}
-            onChange={(e) => setSeats(Math.max(1, Number(e.target.value)))}
+            value={maxUsers}
+            onChange={(e) => setMaxUsers(e.target.value)}
+            placeholder="Unlimited"
           />
+          <p className="mt-1 text-xs text-ink-400">Auto from plan. Blank = unlimited.</p>
+        </div>
+        <div>
+          <label className="label">Max products</label>
+          <input
+            type="number"
+            min={1}
+            className="input"
+            value={maxProducts}
+            onChange={(e) => setMaxProducts(e.target.value)}
+            placeholder="Unlimited"
+          />
+          <p className="mt-1 text-xs text-ink-400">Auto from plan. Blank = unlimited.</p>
         </div>
 
         <div>
@@ -385,7 +410,13 @@ function DealRow({ deal, onChange }: { deal: Deal; onChange: () => void }) {
           </p>
         )}
       </td>
-      <td className="px-4 py-3 text-ink-600">{deal.plan}</td>
+      <td className="px-4 py-3 text-ink-600">
+        {deal.plan}
+        <span className="mt-0.5 block text-xs text-ink-400">
+          {formatLimit(deal.maxUsers ?? PLAN_LIMITS[deal.plan]?.maxUsers ?? Infinity)} users ·{" "}
+          {formatLimit(deal.maxProducts ?? PLAN_LIMITS[deal.plan]?.maxProducts ?? Infinity)} products
+        </span>
+      </td>
       <td className="px-4 py-3 text-ink-700">
         {usd.format(deal.amount)}
         <span className="text-ink-400">{every}</span>

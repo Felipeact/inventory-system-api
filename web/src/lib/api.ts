@@ -704,6 +704,8 @@ export const superAdminApi = {
     contactEmail: string;
     plan: string;
     seats?: number;
+    maxUsers?: number;
+    maxProducts?: number;
     amount?: number;
     interval?: "monthly" | "biweekly";
     description?: string;
