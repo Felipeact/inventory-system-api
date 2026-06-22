@@ -10,10 +10,12 @@ import {
   RefreshCw,
   ArrowLeft,
   TrendingUp,
+  TrendingDown,
   DollarSign,
   Percent,
   Building2,
   Users,
+  Wallet,
   AlertTriangle,
   Check,
   Pencil,
@@ -23,11 +25,31 @@ import { superAdminApi, superAdminStore, ApiError } from "@/lib/api";
 import type { AdminAnalytics, BillingCompany } from "@/lib/types";
 import { Badge } from "@/components/app/ui";
 
-/** Cost assumptions used to turn revenue into profit. Persisted per operator. */
-const COST_KEY = "sp_admin_cost_per_user";
-const FEE_KEY = "sp_admin_fee_pct";
-const DEFAULT_COST_PER_USER = 4;
-const DEFAULT_FEE_PCT = 3;
+/** Operating-cost assumptions, persisted per operator in localStorage. */
+const COSTS_KEY = "sp_admin_pnl_costs";
+
+interface Costs {
+  /** Stripe processing fee, percent of revenue. */
+  stripePct: number;
+  /** Stripe per-charge fee (USD). */
+  stripePerTxn: number;
+  /** Fixed monthly provider bills (USD/mo). */
+  railway: number;
+  ai: number;
+  email: number;
+  storage: number;
+  other: number;
+}
+
+const DEFAULT_COSTS: Costs = {
+  stripePct: 2.9,
+  stripePerTxn: 0.3,
+  railway: 20,
+  ai: 50,
+  email: 20,
+  storage: 5,
+  other: 0,
+};
 
 const usd = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -40,11 +62,16 @@ const usd2 = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-function readNumber(key: string, fallback: number): number {
-  if (typeof window === "undefined") return fallback;
-  const raw = window.localStorage.getItem(key);
-  const n = raw == null ? NaN : Number(raw);
-  return Number.isFinite(n) && n >= 0 ? n : fallback;
+function loadCosts(): Costs {
+  if (typeof window === "undefined") return DEFAULT_COSTS;
+  try {
+    const raw = window.localStorage.getItem(COSTS_KEY);
+    if (!raw) return DEFAULT_COSTS;
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_COSTS, ...parsed };
+  } catch {
+    return DEFAULT_COSTS;
+  }
 }
 
 export default function BillingDashboard() {
@@ -53,9 +80,7 @@ export default function BillingDashboard() {
   const [data, setData] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [costPerUser, setCostPerUser] = useState(DEFAULT_COST_PER_USER);
-  const [feePct, setFeePct] = useState(DEFAULT_FEE_PCT);
+  const [costs, setCosts] = useState<Costs>(DEFAULT_COSTS);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,46 +103,51 @@ export default function BillingDashboard() {
       router.replace("/admin/login");
       return;
     }
-    setCostPerUser(readNumber(COST_KEY, DEFAULT_COST_PER_USER));
-    setFeePct(readNumber(FEE_KEY, DEFAULT_FEE_PCT));
+    setCosts(loadCosts());
     setReady(true);
     void load();
   }, [router, load]);
 
   useEffect(() => {
-    if (ready) window.localStorage.setItem(COST_KEY, String(costPerUser));
-  }, [costPerUser, ready]);
-  useEffect(() => {
-    if (ready) window.localStorage.setItem(FEE_KEY, String(feePct));
-  }, [feePct, ready]);
+    if (ready) window.localStorage.setItem(COSTS_KEY, JSON.stringify(costs));
+  }, [costs, ready]);
 
-  /** Profit for a single company from current cost assumptions. */
+  const setCost = (key: keyof Costs, value: number) =>
+    setCosts((c) => ({ ...c, [key]: Math.max(0, value) }));
+
+  /** Full monthly profit & loss computed from revenue + cost assumptions. */
+  const pnl = useMemo(() => {
+    if (!data) return null;
+    const revenue = data.metrics.mrr;
+    const stripeFees =
+      revenue * (costs.stripePct / 100) + costs.stripePerTxn * data.metrics.payingCompanies;
+    const fixed = costs.railway + costs.ai + costs.email + costs.storage + costs.other;
+    const expenses = stripeFees + fixed;
+    const net = revenue - expenses;
+    return {
+      revenue,
+      stripeFees,
+      fixed,
+      expenses,
+      net,
+      annualNet: net * 12,
+      margin: revenue > 0 ? (net / revenue) * 100 : 0,
+      profitable: net >= 0,
+    };
+  }, [data, costs]);
+
+  /** Per-company profit: its revenue − its Stripe fee − an equal share of fixed costs. */
   const profitOf = useCallback(
     (c: BillingCompany) => {
-      const infra = c.seats * costPerUser;
-      const fees = c.monthlyRevenue * (feePct / 100);
-      const cost = infra + fees;
+      const activeCount = Math.max(1, data?.metrics.activeCompanies ?? 1);
+      const fixed = costs.railway + costs.ai + costs.email + costs.storage + costs.other;
+      const stripe =
+        c.monthlyRevenue * (costs.stripePct / 100) + (c.monthlyRevenue > 0 ? costs.stripePerTxn : 0);
+      const cost = stripe + fixed / activeCount;
       return { cost, profit: c.monthlyRevenue - cost };
     },
-    [costPerUser, feePct],
+    [data, costs],
   );
-
-  const totals = useMemo(() => {
-    if (!data) return null;
-    const mrr = data.metrics.mrr;
-    const infra = data.metrics.activeSeats * costPerUser;
-    const fees = mrr * (feePct / 100);
-    const cost = infra + fees;
-    const profit = mrr - cost;
-    return {
-      mrr,
-      arr: data.metrics.arr,
-      cost,
-      profit,
-      annualProfit: profit * 12,
-      margin: mrr > 0 ? (profit / mrr) * 100 : 0,
-    };
-  }, [data, costPerUser, feePct]);
 
   if (!ready) {
     return (
@@ -153,26 +183,19 @@ export default function BillingDashboard() {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-8 p-5 sm:p-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink-900">Revenue &amp; profit</h1>
-            <p className="mt-1 text-sm text-ink-500">
-              What every customer pays, your recurring revenue, and estimated profit after costs.
-            </p>
-          </div>
-          <CostControls
-            costPerUser={costPerUser}
-            feePct={feePct}
-            onCost={setCostPerUser}
-            onFee={setFeePct}
-          />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-ink-900">Revenue &amp; profit</h1>
+          <p className="mt-1 text-sm text-ink-500">
+            Your monthly P&amp;L — recurring revenue minus what you spend on Stripe, hosting, AI,
+            and other tools — so you can see if you&apos;re making or losing money.
+          </p>
         </div>
 
         {error && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p>
         )}
 
-        {loading || !data || !totals ? (
+        {loading || !data || !pnl ? (
           <div className="grid place-items-center py-20">
             <Loader2 size={24} className="animate-spin text-ink-400" />
           </div>
@@ -188,27 +211,19 @@ export default function BillingDashboard() {
               </div>
             )}
 
+            {/* Verdict + P&L */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              <ProfitVerdict pnl={pnl} />
+              <PnlStatement pnl={pnl} />
+              <ExpenseEditor costs={costs} setCost={setCost} payingCompanies={data.metrics.payingCompanies} stripeFees={pnl.stripeFees} />
+            </div>
+
             {/* KPIs */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Kpi icon={DollarSign} label="MRR" value={usd.format(totals.mrr)} hint="Monthly recurring revenue" tone="brand" />
-              <Kpi icon={TrendingUp} label="ARR" value={usd.format(totals.arr)} hint="Annual run-rate" />
-              <Kpi
-                icon={DollarSign}
-                label="Est. monthly profit"
-                value={usd.format(totals.profit)}
-                hint={`${usd.format(totals.annualProfit)} / yr after costs`}
-                tone={totals.profit >= 0 ? "good" : "bad"}
-              />
-              <Kpi
-                icon={Percent}
-                label="Gross margin"
-                value={`${totals.margin.toFixed(0)}%`}
-                hint={`${usd.format(totals.cost)} est. monthly cost`}
-              />
+              <Kpi icon={DollarSign} label="MRR" value={usd.format(pnl.revenue)} hint="Recurring revenue / mo" tone="brand" />
+              <Kpi icon={TrendingUp} label="ARR" value={usd.format(data.metrics.arr)} hint="Annual run-rate" />
               <Kpi icon={Building2} label="Active customers" value={String(data.metrics.activeCompanies)} hint={`${data.metrics.totalCompanies} total`} />
               <Kpi icon={Users} label="Paid seats" value={String(data.metrics.activeSeats)} hint="Across active customers" />
-              <Kpi icon={DollarSign} label="ARPA" value={usd.format(data.metrics.arpa)} hint="Avg revenue / account" />
-              <Kpi icon={Building2} label="Paying customers" value={String(data.metrics.payingCompanies)} hint="Revenue > $0" />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
@@ -224,46 +239,167 @@ export default function BillingDashboard() {
   );
 }
 
-function CostControls({
-  costPerUser,
-  feePct,
-  onCost,
-  onFee,
-}: {
-  costPerUser: number;
-  feePct: number;
-  onCost: (n: number) => void;
-  onFee: (n: number) => void;
-}) {
+type Pnl = {
+  revenue: number;
+  stripeFees: number;
+  fixed: number;
+  expenses: number;
+  net: number;
+  annualNet: number;
+  margin: number;
+  profitable: boolean;
+};
+
+/** Big headline: are you making or losing money this month? */
+function ProfitVerdict({ pnl }: { pnl: Pnl }) {
+  const good = pnl.profitable;
   return (
-    <div className="flex items-end gap-3 rounded-xl border border-ink-100 bg-white p-3">
-      <div>
-        <label className="label flex items-center gap-1 text-xs">Infra cost / user / mo</label>
-        <div className="relative">
-          <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-400">$</span>
-          <input
-            type="number"
-            min={0}
-            step={0.5}
-            value={costPerUser}
-            onChange={(e) => onCost(Math.max(0, Number(e.target.value)))}
-            className="input h-9 w-24 pl-5 text-sm"
-          />
-        </div>
+    <div className={`card flex flex-col justify-between p-6 ${good ? "ring-1 ring-green-200" : "ring-1 ring-red-200"}`}>
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-ink-400">
+        {good ? <TrendingUp size={14} className="text-green-600" /> : <TrendingDown size={14} className="text-red-600" />}
+        Net profit / month
       </div>
       <div>
-        <label className="label text-xs">Payment fee</label>
-        <div className="relative">
-          <input
-            type="number"
-            min={0}
-            step={0.1}
-            value={feePct}
-            onChange={(e) => onFee(Math.max(0, Number(e.target.value)))}
-            className="input h-9 w-20 pr-6 text-sm"
+        <p className={`mt-2 text-4xl font-extrabold tracking-tight ${good ? "text-green-600" : "text-red-600"}`}>
+          {pnl.net < 0 ? `-${usd.format(Math.abs(pnl.net))}` : usd.format(pnl.net)}
+        </p>
+        <p className="mt-1 text-sm text-ink-500">
+          {good ? "Profitable" : "Operating at a loss"} · {pnl.margin.toFixed(0)}% margin
+        </p>
+      </div>
+      <p className="mt-4 text-xs text-ink-400">
+        {pnl.annualNet < 0
+          ? `${usd.format(pnl.annualNet)} / yr at this rate`
+          : `${usd.format(pnl.annualNet)} / yr projected`}
+      </p>
+    </div>
+  );
+}
+
+/** Revenue − expenses = net, line by line. */
+function PnlStatement({ pnl }: { pnl: Pnl }) {
+  return (
+    <div className="card p-6">
+      <h2 className="text-base font-semibold text-ink-900">Monthly P&amp;L</h2>
+      <dl className="mt-4 space-y-2.5 text-sm">
+        <Row label="Gross revenue (MRR)" value={usd2.format(pnl.revenue)} strong tone="good" />
+        <Row label="− Stripe processing fees" value={`-${usd2.format(pnl.stripeFees)}`} />
+        <Row label="− Fixed monthly costs" value={`-${usd2.format(pnl.fixed)}`} />
+        <div className="!mt-3 border-t border-ink-100 pt-3">
+          <Row
+            label="= Net profit"
+            value={pnl.net < 0 ? `-${usd2.format(Math.abs(pnl.net))}` : usd2.format(pnl.net)}
+            strong
+            tone={pnl.profitable ? "good" : "bad"}
           />
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ink-400">%</span>
         </div>
+      </dl>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  value,
+  strong,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  tone?: "default" | "good" | "bad";
+}) {
+  const color = tone === "good" ? "text-green-600" : tone === "bad" ? "text-red-600" : "text-ink-700";
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-ink-500">{label}</dt>
+      <dd className={`${strong ? "font-bold" : "font-medium"} ${color}`}>{value}</dd>
+    </div>
+  );
+}
+
+/** Editable operating costs. Stripe fees are computed; fixed bills are entered. */
+function ExpenseEditor({
+  costs,
+  setCost,
+  payingCompanies,
+  stripeFees,
+}: {
+  costs: Costs;
+  setCost: (k: keyof Costs, v: number) => void;
+  payingCompanies: number;
+  stripeFees: number;
+}) {
+  return (
+    <div className="card p-6">
+      <h2 className="flex items-center gap-2 text-base font-semibold text-ink-900">
+        <Wallet size={16} className="text-brand-600" /> Operating expenses
+      </h2>
+
+      <p className="mt-3 text-xs font-medium uppercase tracking-wide text-ink-400">Stripe processing</p>
+      <div className="mt-2 flex items-end gap-2">
+        <PctField label="Fee %" value={costs.stripePct} onChange={(v) => setCost("stripePct", v)} />
+        <MoneyField label="Per charge" value={costs.stripePerTxn} onChange={(v) => setCost("stripePerTxn", v)} step={0.05} />
+      </div>
+      <p className="mt-1.5 text-xs text-ink-400">
+        ≈ {usd2.format(stripeFees)}/mo on current revenue ({payingCompanies} charges)
+      </p>
+
+      <p className="mt-4 text-xs font-medium uppercase tracking-wide text-ink-400">Fixed monthly bills</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <MoneyField label="Railway / hosting" value={costs.railway} onChange={(v) => setCost("railway", v)} />
+        <MoneyField label="AI (Anthropic)" value={costs.ai} onChange={(v) => setCost("ai", v)} />
+        <MoneyField label="Email" value={costs.email} onChange={(v) => setCost("email", v)} />
+        <MoneyField label="Storage" value={costs.storage} onChange={(v) => setCost("storage", v)} />
+        <MoneyField label="Other" value={costs.other} onChange={(v) => setCost("other", v)} />
+      </div>
+    </div>
+  );
+}
+
+function MoneyField({
+  label,
+  value,
+  onChange,
+  step = 1,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  step?: number;
+}) {
+  return (
+    <div>
+      <label className="label text-xs">{label}</label>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-400">$</span>
+        <input
+          type="number"
+          min={0}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="input h-9 w-full pl-5 text-sm"
+        />
+      </div>
+    </div>
+  );
+}
+
+function PctField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div>
+      <label className="label text-xs">{label}</label>
+      <div className="relative">
+        <input
+          type="number"
+          min={0}
+          step={0.1}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="input h-9 w-20 pr-6 text-sm"
+        />
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-ink-400">%</span>
       </div>
     </div>
   );
@@ -363,11 +499,13 @@ function CustomersTable({
   profitOf: (c: BillingCompany) => { cost: number; profit: number };
   onChanged: () => void;
 }) {
-  // Highest-paying customers first.
   const rows = [...data.companies].sort((a, b) => b.monthlyRevenue - a.monthlyRevenue);
   return (
     <section>
       <h2 className="mb-3 text-base font-semibold text-ink-900">Customers</h2>
+      <p className="mb-3 text-xs text-ink-400">
+        Profit per customer includes its Stripe fee plus an equal share of your fixed monthly costs.
+      </p>
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -418,7 +556,7 @@ function CustomersTable({
                   </td>
                   <td className="px-4 py-3 text-right text-ink-500">{usd2.format(cost)}</td>
                   <td className={`px-4 py-3 text-right font-medium ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {usd2.format(profit)}
+                    {profit < 0 ? `-${usd2.format(Math.abs(profit))}` : usd2.format(profit)}
                   </td>
                   <td className="px-4 py-3 text-right text-ink-500">
                     {c.monthlyRevenue > 0 ? `${margin.toFixed(0)}%` : "—"}
