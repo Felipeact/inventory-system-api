@@ -287,6 +287,8 @@ export interface AdminAnalytics {
   signupsByMonth: { month: string; count: number }[];
   /** New + cumulative MRR per month (last 24 months, oldest → newest). */
   revenueByMonth: RevenuePoint[];
+  /** Recorded daily MRR snapshots (true history, accrues over time). */
+  mrrHistory?: { day: string; mrr: number }[];
   companies: BillingCompany[];
 }
 

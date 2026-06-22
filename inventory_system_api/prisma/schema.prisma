@@ -224,6 +224,21 @@ model Quote {
   updatedAt DateTime @updatedAt
 }
 
+/**
+ * Daily snapshot of platform revenue, captured each time the super-admin analytics
+ * are loaded (one row per calendar day). Builds a TRUE MRR history over time, so the
+ * revenue trend stops being an estimate reconstructed from signup dates.
+ */
+model RevenueSnapshot {
+  day              String   @id // YYYY-MM-DD (one snapshot per day)
+  mrr              Float
+  activeCompanies  Int
+  payingCompanies  Int
+  activeSeats      Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   action    String

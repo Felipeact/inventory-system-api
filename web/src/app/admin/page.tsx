@@ -108,6 +108,7 @@ export default function AdminDashboard() {
           <Link href="/admin/billing" className="btn-ghost text-sm">
             <LineChart size={16} /> Revenue
           </Link>
+          <SyncStripeButton onDone={load} />
           <button onClick={load} className="btn-ghost p-2" title="Refresh" aria-label="Refresh">
             <RefreshCw size={18} />
           </button>
@@ -183,6 +184,43 @@ export default function AdminDashboard() {
           )}
         </section>
       </main>
+    </div>
+  );
+}
+
+/** Pull live subscription + quote state from Stripe to recover from any missed webhook. */
+function SyncStripeButton({ onDone }: { onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  return (
+    <div className="relative">
+      <button
+        className="btn-ghost text-sm"
+        disabled={busy}
+        title="Re-pull subscription & quote state from Stripe"
+        onClick={async () => {
+          setBusy(true);
+          setMsg(null);
+          try {
+            const r = await superAdminApi.reconcile();
+            setMsg(`Synced ${r.companiesSynced} · ${r.quotesResolved} quote${r.quotesResolved === 1 ? "" : "s"} resolved`);
+            onDone();
+          } catch {
+            setMsg("Sync failed");
+          } finally {
+            setBusy(false);
+            setTimeout(() => setMsg(null), 4000);
+          }
+        }}
+      >
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+        Sync Stripe
+      </button>
+      {msg && (
+        <span className="absolute right-0 top-full mt-1 whitespace-nowrap rounded bg-ink-900 px-2 py-1 text-xs text-white">
+          {msg}
+        </span>
+      )}
     </div>
   );
 }

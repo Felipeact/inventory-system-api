@@ -59,6 +59,21 @@ export class SuperAdminService {
         return this.quotes.remove(id);
     }
 
+    /** Re-check a sent quote against Stripe and advance it (recover a missed webhook). */
+    syncDeal(id: string) {
+        return this.quotes.syncFromStripe(id);
+    }
+
+    /** Force-issue a quote's activation code now (payment confirmed out of band). */
+    forceIssueDealCode(id: string) {
+        return this.quotes.forceIssueCode(id);
+    }
+
+    /** Reconcile every company subscription + open quote against Stripe. */
+    reconcileBilling() {
+        return this.billing.reconcileAll();
+    }
+
     async createSuperAdmin(dto: any, bootstrapSecret?: string) {
         const { email, password } = dto;
 
@@ -329,13 +344,25 @@ export class SuperAdminService {
         // dashboard can show past trend, present, and project the future.
         const revenueByMonth = this.revenueByMonth(rows, 24);
 
+        const payingCompanies = active.filter((row) => row.monthlyRevenue > 0).length;
+        const activeSeats = active.reduce((sum, row) => sum + row.seats, 0);
+
+        // Record today's snapshot (one per day) so a real MRR history accrues, and
+        // return the recorded history. Best-effort — never block analytics on it.
+        const mrrHistory = await this.recordSnapshot({
+            mrr,
+            activeCompanies: active.length,
+            payingCompanies,
+            activeSeats,
+        });
+
         return {
             metrics: {
                 totalCompanies: rows.length,
                 activeCompanies: active.length,
-                payingCompanies: active.filter((row) => row.monthlyRevenue > 0).length,
+                payingCompanies,
                 companiesNeedingPricing: rows.filter((row) => row.isActive && row.needsPricing).length,
-                activeSeats: active.reduce((sum, row) => sum + row.seats, 0),
+                activeSeats,
                 mrr,
                 arr: mrr * 12,
                 arpa: active.length ? mrr / active.length : 0
@@ -344,8 +371,31 @@ export class SuperAdminService {
             statusBreakdown,
             signupsByMonth,
             revenueByMonth,
+            mrrHistory,
             companies: rows
         };
+    }
+
+    /**
+     * Upsert today's revenue snapshot and return the recorded daily history (last 365
+     * days). Failures are swallowed so a snapshot-table issue never breaks analytics.
+     */
+    private async recordSnapshot(metrics: {
+        mrr: number;
+        activeCompanies: number;
+        payingCompanies: number;
+        activeSeats: number;
+    }): Promise<{ day: string; mrr: number }[]> {
+        const now = new Date();
+        const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        try {
+            await this.repo.upsertRevenueSnapshot(day, metrics);
+            const since = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            const sinceDay = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, '0')}-${String(since.getDate()).padStart(2, '0')}`;
+            return this.repo.findRevenueSnapshots(sinceDay);
+        } catch {
+            return [];
+        }
     }
 
     /**

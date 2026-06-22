@@ -116,4 +116,19 @@ export class SuperAdminController extends BaseController {
         const data = await this.service.removeDeal(req.params.id as string);
         return this.ok(res, data);
     });
+
+    syncDeal = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.syncDeal(req.params.id as string);
+        return this.ok(res, data);
+    });
+
+    forceIssueDealCode = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.forceIssueDealCode(req.params.id as string);
+        return this.ok(res, data);
+    });
+
+    reconcile = asyncHandler(async (_req: AuthRequest, res: Response) => {
+        const data = await this.service.reconcileBilling();
+        return this.ok(res, data);
+    });
 }

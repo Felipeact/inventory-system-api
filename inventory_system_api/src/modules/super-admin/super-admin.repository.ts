@@ -91,4 +91,25 @@ export class SuperAdminRepository {
       data: { isActive: false }
     });
   }
+
+  /** Upsert today's revenue snapshot (one row per calendar day). */
+  upsertRevenueSnapshot(
+    day: string,
+    metrics: { mrr: number; activeCompanies: number; payingCompanies: number; activeSeats: number }
+  ) {
+    return prisma.revenueSnapshot.upsert({
+      where: { day },
+      create: { day, ...metrics },
+      update: metrics
+    });
+  }
+
+  /** Recorded daily MRR history from `sinceDay` (YYYY-MM-DD), oldest → newest. */
+  findRevenueSnapshots(sinceDay: string): Promise<{ day: string; mrr: number }[]> {
+    return prisma.revenueSnapshot.findMany({
+      where: { day: { gte: sinceDay } },
+      orderBy: { day: 'asc' },
+      select: { day: true, mrr: true }
+    });
+  }
 }

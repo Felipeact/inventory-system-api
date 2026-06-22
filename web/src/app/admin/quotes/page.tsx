@@ -17,6 +17,7 @@ import {
   Ban,
   Trash2,
   KeyRound,
+  RefreshCw,
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError } from "@/lib/api";
 import type { Deal } from "@/lib/types";
@@ -457,6 +458,14 @@ function DealRow({ deal, onChange }: { deal: Deal; onChange: () => void }) {
           {deal.status === "SENT" && (
             <>
               {deal.checkoutUrl && <CopyLink url={deal.checkoutUrl} />}
+              <button
+                className="btn-ghost text-xs"
+                title="Check Stripe for payment (recover a missed webhook)"
+                disabled={busy !== null}
+                onClick={() => run("sync", () => superAdminApi.syncDeal(deal.id))}
+              >
+                {busy === "sync" ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />} Sync
+              </button>
               <button
                 className="btn-ghost p-1.5 text-red-600"
                 title="Decline / cancel"

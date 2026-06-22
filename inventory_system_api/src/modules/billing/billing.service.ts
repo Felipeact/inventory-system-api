@@ -22,6 +22,7 @@ import {
   planForPriceId,
 } from './billing.config';
 import { QuoteService } from '../quotes/quote.service';
+import { EmailService } from '../email/email.service';
 
 export class BillingService {
   private stripe: Stripe | null = env.STRIPE_SECRET_KEY
@@ -29,6 +30,7 @@ export class BillingService {
     : null;
 
   private quotes = new QuoteService();
+  private email = new EmailService();
 
   private client(): Stripe {
     if (!this.stripe) {
@@ -188,6 +190,17 @@ export class BillingService {
         }
         break;
       }
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.metadata?.kind === 'prospect_quote') {
+          await this.quotes.markExpiredFromCheckout(session);
+        }
+        break;
+      }
+      case 'invoice.payment_failed': {
+        await this.handlePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+      }
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription;
@@ -298,6 +311,81 @@ export class BillingService {
     });
 
     logger.info({ companyId }, 'Company subscription lapsed — access suspended');
+  }
+
+  /**
+   * A renewal payment failed. Stripe keeps retrying (dunning) and will eventually
+   * cancel the subscription if it never succeeds — at which point access lapses via
+   * the subscription.deleted handler. We don't suspend immediately (that would lock a
+   * customer out on a transient card decline); instead we flag it to the operator so
+   * they can follow up while Stripe retries.
+   */
+  private async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
+    const customerId =
+      typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null;
+    if (!customerId) return;
+
+    const company = await prisma.company.findFirst({
+      where: { stripeCustomerId: customerId },
+      select: { id: true, name: true },
+    });
+    const amount = ((invoice.amount_due ?? 0) / 100).toFixed(2);
+
+    logger.warn(
+      { company: company?.id, customerId, invoice: invoice.id },
+      'Stripe invoice payment failed (dunning)',
+    );
+
+    // Best-effort operator alert.
+    void this.email.sendAdminNotification('Payment failed', `
+      <p>A subscription payment just failed${company ? ` for <strong>${company.name}</strong>` : ''}.</p>
+      <p>Amount due: <strong>$${amount}</strong>. Stripe will retry automatically; if it keeps
+      failing the subscription will cancel and access will be suspended.</p>
+      <p style="color:#6b7280;font-size:13px;">Invoice ${invoice.id}</p>
+    `);
+  }
+
+  /**
+   * Reconcile every company's plan subscription from Stripe (the source of truth) and
+   * advance any open sales quotes. Use this to recover from a missed/failed webhook —
+   * e.g. a customer upgraded but the change never synced, or a prospect paid but their
+   * code was never issued. Returns a summary of what changed.
+   */
+  async reconcileAll(): Promise<{ companiesSynced: number; quotesResolved: number }> {
+    const companies = await prisma.company.findMany({
+      where: { stripeCustomerId: { not: null } },
+      select: { id: true, stripeCustomerId: true, stripeSubscriptionId: true },
+    });
+
+    let companiesSynced = 0;
+    for (const company of companies) {
+      try {
+        // Prefer the known plan subscription; otherwise find the customer's plan sub
+        // (one without a custom-quote/prospect kind in its metadata).
+        let sub: Stripe.Subscription | null = null;
+        if (company.stripeSubscriptionId) {
+          sub = await this.client().subscriptions.retrieve(company.stripeSubscriptionId);
+        } else {
+          const subs = await this.client().subscriptions.list({
+            customer: company.stripeCustomerId as string,
+            status: 'all',
+            limit: 20,
+          });
+          sub =
+            subs.data.find((s) => !s.metadata?.kind && ['active', 'trialing'].includes(s.status)) ??
+            null;
+        }
+        if (sub) {
+          await this.applySubscription(sub);
+          companiesSynced++;
+        }
+      } catch (err) {
+        logger.warn({ err, company: company.id }, 'Reconcile: failed to sync company subscription');
+      }
+    }
+
+    const quotesResolved = await this.quotes.reconcileOpen();
+    return { companiesSynced, quotesResolved };
   }
 
   /** Read the current period end from the subscription (or its first item), as a Date. */

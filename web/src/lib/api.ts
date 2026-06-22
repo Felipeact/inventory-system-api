@@ -726,4 +726,15 @@ export const superAdminApi = {
   async removeDeal(id: string) {
     return saRequest(`/deals/${id}`, { method: "DELETE" });
   },
+  async syncDeal(id: string) {
+    return saRequest<Deal>(`/deals/${id}/sync`, { method: "POST" });
+  },
+  async issueDealCode(id: string) {
+    return saRequest<Deal>(`/deals/${id}/issue-code`, { method: "POST" });
+  },
+  async reconcile() {
+    return saRequest<{ companiesSynced: number; quotesResolved: number }>("/reconcile", {
+      method: "POST",
+    });
+  },
 };

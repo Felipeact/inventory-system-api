@@ -113,6 +113,29 @@ router.delete(
   controller.removeDeal
 );
 
+// Re-check a sent quote against Stripe (recover a missed webhook).
+router.post(
+  '/deals/:id/sync',
+  superAdminMiddleware,
+  validate(dealIdSchema),
+  controller.syncDeal
+);
+
+// Force-issue the activation code now (payment confirmed out of band).
+router.post(
+  '/deals/:id/issue-code',
+  superAdminMiddleware,
+  validate(dealIdSchema),
+  controller.forceIssueDealCode
+);
+
+// Reconcile every company subscription + open quote against Stripe.
+router.post(
+  '/reconcile',
+  superAdminMiddleware,
+  controller.reconcile
+);
+
 router.patch(
   '/companies/:id/deactivate',
   superAdminMiddleware,

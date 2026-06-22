@@ -515,6 +515,15 @@ function RevenueTrends({ data }: { data: AdminAnalytics }) {
   const series = data.revenueByMonth ?? [];
   const currentMrr = data.metrics.mrr;
 
+  // Real recorded MRR history (one point per day) collapsed to month-end values.
+  // When we have ≥2 months of it, the "past" view uses it instead of the estimate.
+  const recordedMonthly = useMemo(() => {
+    const byMonth = new Map<string, number>(); // YYYY-MM → last recorded mrr
+    for (const pt of data.mrrHistory ?? []) byMonth.set(pt.day.slice(0, 7), pt.mrr);
+    return Array.from(byMonth.entries()).map(([month, mrr]) => ({ month, mrr }));
+  }, [data.mrrHistory]);
+  const hasRecorded = recordedMonthly.length >= 2;
+
   // Default future growth = average net-new MRR over the last 3 months.
   const recentGrowth = useMemo(() => {
     const tail = series.slice(-3);
@@ -555,9 +564,15 @@ function RevenueTrends({ data }: { data: AdminAnalytics }) {
       }));
     }
 
+    // Prefer real recorded history (month-end MRR) when we have enough of it.
+    if (hasRecorded) {
+      const sliced = recordedMonthly.slice(Math.max(0, recordedMonthly.length - range));
+      return sliced.map((p) => ({ label: fmtMonth(p.month), value: p.mrr }));
+    }
+
     const sliced = series.slice(Math.max(0, series.length - range));
     return sliced.map((p) => ({ label: fmtMonth(p.month), value: p.cumulativeMrr, sub: p.newMrr }));
-  }, [view, grain, range, series, currentMrr, growthPerMonth]);
+  }, [view, grain, range, series, currentMrr, growthPerMonth, hasRecorded, recordedMonthly]);
 
   const max = Math.max(1, ...bars.map((b) => b.value));
 
@@ -576,7 +591,9 @@ function RevenueTrends({ data }: { data: AdminAnalytics }) {
             {view === "present"
               ? "Where you are right now."
               : view === "past"
-                ? "Estimated from signup dates and current pricing."
+                ? hasRecorded
+                  ? "Recorded from daily snapshots."
+                  : "Estimated from signup dates and current pricing (real history builds up daily)."
                 : `Projected at ${usd.format(growthPerMonth)}/mo net-new MRR.`}
           </p>
         </div>

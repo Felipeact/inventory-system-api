@@ -219,9 +219,8 @@ export class QuoteService {
   }
 
   /**
-   * Webhook entry point: a prospect just paid. Mark the quote PAID, then auto-issue
-   * the activation code and (when there's no setup fee) email it with a register link.
-   * Idempotent — safe to call more than once for the same checkout session.
+   * Webhook entry point: a prospect just paid. Issues the activation code and (when
+   * there's no setup fee) emails it. Idempotent — safe to call repeatedly.
    */
   async markPaidFromCheckout(session: Stripe.Checkout.Session) {
     const quoteId = session.metadata?.quoteId || session.client_reference_id;
@@ -229,22 +228,36 @@ export class QuoteService {
       logger.warn({ session: session.id }, 'prospect_quote checkout has no quoteId');
       return;
     }
-
     const quote = await prisma.quote.findUnique({ where: { id: quoteId } });
     if (!quote) {
       logger.warn({ quoteId }, 'prospect_quote checkout references unknown quote');
       return;
     }
-    // Already processed past payment — nothing to do.
-    if (['PAID', 'CODE_ISSUED', 'REGISTERED'].includes(quote.status) && quote.activationCode) {
-      return;
-    }
-
     const subscriptionId =
       typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
+    await this.issueCodeForQuote(quote, subscriptionId);
+  }
 
-    // Issue the activation code carrying this quote's caps (which default to the
-    // plan's catalog caps but may have been overridden for the deal).
+  /** Webhook: a checkout link expired before payment — mark the quote EXPIRED. */
+  async markExpiredFromCheckout(session: Stripe.Checkout.Session) {
+    const quoteId = session.metadata?.quoteId || session.client_reference_id;
+    if (!quoteId) return;
+    const quote = await prisma.quote.findUnique({ where: { id: quoteId } });
+    if (quote && quote.status === 'SENT') {
+      await prisma.quote.update({ where: { id: quote.id }, data: { status: 'EXPIRED' } });
+      logger.info({ quoteId }, 'Prospect quote checkout expired');
+    }
+  }
+
+  /**
+   * Issue the activation code for a paid quote. Idempotent: if the quote already has a
+   * code, does nothing. Carries the quote's caps (default to the plan's catalog caps).
+   */
+  private async issueCodeForQuote(quote: { id: string; status: string; activationCode: string | null; plan: string; companyName: string; contactEmail: string; setupFee: number; maxUsers: number | null; maxProducts: number | null }, subscriptionId: string | null) {
+    if (['PAID', 'CODE_ISSUED', 'REGISTERED'].includes(quote.status) && quote.activationCode) {
+      return; // already processed
+    }
+
     const def = planDef(quote.plan);
     const code = this.generateCode();
     const activation = await prisma.activationCode.create({
@@ -273,7 +286,7 @@ export class QuoteService {
       data: {
         status: 'CODE_ISSUED',
         paidAt: new Date(),
-        stripeSubscriptionId: subscriptionId,
+        stripeSubscriptionId: subscriptionId ?? undefined,
         activationCode: code,
         activationCodeId: activation.id,
         codeEmailedAt: shouldAutoEmail ? new Date() : null,
@@ -281,6 +294,52 @@ export class QuoteService {
     });
 
     logger.info({ quoteId: quote.id, autoEmailed: shouldAutoEmail }, 'Prospect quote paid — activation code issued');
+  }
+
+  /**
+   * Operator-triggered: re-check a SENT quote against Stripe and advance it. Recovers
+   * from a missed webhook — if the checkout was paid, issue the code; if it expired,
+   * mark it expired.
+   */
+  async syncFromStripe(id: string) {
+    const quote = await this.get(id);
+    if (!quote.stripeCheckoutSessionId) return quote;
+    if (['CODE_ISSUED', 'REGISTERED'].includes(quote.status)) return quote;
+
+    const session = await this.client().checkout.sessions.retrieve(quote.stripeCheckoutSessionId);
+    if (session.status === 'complete' || session.payment_status === 'paid') {
+      const subscriptionId =
+        typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null;
+      await this.issueCodeForQuote(quote, subscriptionId);
+    } else if (session.status === 'expired' && quote.status === 'SENT') {
+      await prisma.quote.update({ where: { id: quote.id }, data: { status: 'EXPIRED' } });
+    }
+    return this.get(id);
+  }
+
+  /**
+   * Operator-triggered: force-issue the code now (e.g. payment confirmed out of band).
+   */
+  async forceIssueCode(id: string) {
+    const quote = await this.get(id);
+    await this.issueCodeForQuote(quote, quote.stripeSubscriptionId ?? null);
+    return this.get(id);
+  }
+
+  /** Reconcile all open (SENT) quotes against Stripe. Returns how many advanced. */
+  async reconcileOpen(): Promise<number> {
+    const open = await prisma.quote.findMany({ where: { status: 'SENT' } });
+    let resolved = 0;
+    for (const quote of open) {
+      try {
+        const before = quote.status;
+        const after = await this.syncFromStripe(quote.id);
+        if (after.status !== before) resolved++;
+      } catch (err) {
+        logger.warn({ err, quoteId: quote.id }, 'Reconcile: failed to sync quote');
+      }
+    }
+    return resolved;
   }
 
   /** (Re)send the activation code + registration link to the prospect. */

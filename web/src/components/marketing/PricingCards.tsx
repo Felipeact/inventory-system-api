@@ -1,49 +1,20 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { PLANS } from "@/lib/plans";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export function PricingCards() {
-  const [annual, setAnnual] = useState(true);
-
   return (
     <div>
-      {/* Billing toggle */}
-      <div className="flex items-center justify-center gap-3">
-        <span className={cn("text-sm font-medium", !annual ? "text-ink-900" : "text-ink-400")}>
-          Monthly
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={annual}
-          onClick={() => setAnnual((v) => !v)}
-          className={cn(
-            "relative h-6 w-11 rounded-full transition",
-            annual ? "bg-brand-600" : "bg-ink-300",
-          )}
-        >
-          <span
-            className={cn(
-              "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition",
-              annual ? "left-[22px]" : "left-0.5",
-            )}
-          />
-        </button>
-        <span className={cn("text-sm font-medium", annual ? "text-ink-900" : "text-ink-400")}>
-          Annual
-        </span>
-        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
-          Save ~20%
-        </span>
-      </div>
+      <p className="text-center text-sm font-medium text-ink-500">
+        One flat monthly price per plan — no per-seat math.
+      </p>
 
-      <div className="mt-12 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
         {PLANS.map((plan) => {
-          const price = annual ? plan.priceAnnual : plan.priceMonthly;
+          const price = plan.priceMonthly;
           return (
             <div
               key={plan.id}
