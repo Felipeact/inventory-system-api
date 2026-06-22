@@ -92,8 +92,9 @@ export class BillingService {
   }
 
   /**
-   * Start a Checkout session to subscribe the company to `plan`. Quantity is the
-   * company's current seat (user) count; Stripe handles proration on later changes.
+   * Start a Checkout session to subscribe the company to `plan`. Plans bill at a
+   * FLAT monthly price (quantity 1) regardless of seat count — the configured Stripe
+   * Price must be that flat amount (e.g. $199/$499/$999), not a per-seat price.
    */
   async createCheckoutSession(companyId: string, plan: string): Promise<{ url: string }> {
     const key = String(plan ?? '').toUpperCase();
@@ -110,14 +111,13 @@ export class BillingService {
     }
 
     const customer = await this.ensureCustomer(companyId);
-    const seats = Math.max(1, await prisma.user.count({ where: { companyId } }));
     const base = this.frontendUrl();
 
     const session = await this.client().checkout.sessions.create({
       mode: 'subscription',
       customer,
       client_reference_id: companyId,
-      line_items: [{ price: config.priceId, quantity: seats }],
+      line_items: [{ price: config.priceId, quantity: 1 }],
       allow_promotion_codes: true,
       subscription_data: { metadata: { companyId } },
       success_url: `${base}/billing?status=success`,

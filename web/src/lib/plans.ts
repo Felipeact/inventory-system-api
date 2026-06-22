@@ -1,8 +1,9 @@
 /**
  * Pricing plan definitions (styled after the GitHub Copilot plans page).
  * Mirrors the backend plan catalog (inventory_system_api/src/config/plans.ts):
- * four paid tiers, the cheapest (Starter) without the AI assistant, AI included
- * from Pro upward. Keep prices/limits in sync with that catalog.
+ * four paid tiers at a FLAT monthly price (not per-seat), the cheapest (Starter)
+ * without the AI assistant, AI included from Pro upward. User counts are caps, not
+ * billing multipliers. Keep prices/limits in sync with that catalog.
  */
 export interface Plan {
   id: string;
@@ -25,9 +26,9 @@ export const PLANS: Plan[] = [
     id: "starter",
     name: "Starter",
     tagline: "For small crews getting organized.",
-    priceMonthly: 99,
-    priceAnnual: 82,
-    unit: "per user / month",
+    priceMonthly: 199,
+    priceAnnual: 166,
+    unit: "flat / month",
     onboardingFee: 500,
     cta: { label: "Start Starter", href: "/request-demo?plan=starter" },
     limits: { users: "Up to 5 users", products: "Up to 250 products" },
@@ -43,9 +44,9 @@ export const PLANS: Plan[] = [
     id: "pro",
     name: "Pro",
     tagline: "For growing field-service teams.",
-    priceMonthly: 150,
-    priceAnnual: 125,
-    unit: "per user / month",
+    priceMonthly: 499,
+    priceAnnual: 416,
+    unit: "flat / month",
     onboardingFee: 1500,
     badge: "Most popular",
     highlighted: true,
@@ -63,9 +64,9 @@ export const PLANS: Plan[] = [
     id: "business",
     name: "Business",
     tagline: "For multi-truck operations at scale.",
-    priceMonthly: 250,
-    priceAnnual: 208,
-    unit: "per user / month",
+    priceMonthly: 999,
+    priceAnnual: 833,
+    unit: "flat / month",
     onboardingFee: 3000,
     cta: { label: "Request a demo", href: "/request-demo?plan=business" },
     limits: { users: "Unlimited users", products: "Unlimited products" },
@@ -108,14 +109,15 @@ export const PLAN_LIMITS: Record<
     maxUsers: number;
     maxProducts: number;
     ai: boolean;
-    pricePerSeat: number | null;
+    /** Flat monthly price for the plan (USD). null = custom. */
+    priceMonthly: number | null;
     onboardingFee: number | null;
   }
 > = {
-  STARTER: { maxUsers: 5, maxProducts: 250, ai: false, pricePerSeat: 99, onboardingFee: 500 },
-  PRO: { maxUsers: 25, maxProducts: Infinity, ai: true, pricePerSeat: 150, onboardingFee: 1500 },
-  BUSINESS: { maxUsers: Infinity, maxProducts: Infinity, ai: true, pricePerSeat: 250, onboardingFee: 3000 },
-  ENTERPRISE: { maxUsers: Infinity, maxProducts: Infinity, ai: true, pricePerSeat: null, onboardingFee: null },
+  STARTER: { maxUsers: 5, maxProducts: 250, ai: false, priceMonthly: 199, onboardingFee: 500 },
+  PRO: { maxUsers: 25, maxProducts: Infinity, ai: true, priceMonthly: 499, onboardingFee: 1500 },
+  BUSINESS: { maxUsers: Infinity, maxProducts: Infinity, ai: true, priceMonthly: 999, onboardingFee: 3000 },
+  ENTERPRISE: { maxUsers: Infinity, maxProducts: Infinity, ai: true, priceMonthly: null, onboardingFee: null },
 };
 
 /** Format a limit number for display ("Unlimited" for the effectively-unlimited ceiling). */
@@ -123,15 +125,12 @@ export function formatLimit(n: number): string {
   return !Number.isFinite(n) || n >= 1_000_000 ? "Unlimited" : String(n);
 }
 
-/**
- * Standard per-seat rate used for the "estimated monthly cost" examples on the
- * pricing page (the Pro / most-popular plan). Mirrors typical field-service
- * software pricing (~$150 per user / month).
- */
-export const STANDARD_SEAT_PRICE = 150;
-
-/** Team sizes shown in the estimated-cost example table. */
-export const ESTIMATE_TEAM_SIZES = [5, 10, 25, 50];
+/** The self-serve flat plans (Starter · Pro · Business) for the "what teams spend" table. */
+export const FLAT_PLAN_SUMMARY: { name: string; price: number; cap: string }[] = [
+  { name: "Starter", price: 199, cap: "up to 5 users" },
+  { name: "Pro", price: 499, cap: "up to 25 users" },
+  { name: "Business", price: 999, cap: "unlimited users" },
+];
 
 /** Feature comparison matrix rows for the pricing table (Starter · Pro · Business · Enterprise). */
 export interface CompareRow {
@@ -191,16 +190,16 @@ export const COMPARISON: CompareSection[] = [
 
 export const FAQS = [
   {
-    q: "How does per-user pricing work?",
-    a: "You're billed for active users (admins, dispatchers, and technicians). Add or remove seats anytime — changes are prorated to your billing cycle.",
+    q: "How does pricing work?",
+    a: "Each plan is one flat monthly price — not per user. You pick the plan that fits your team size (each plan includes a user limit), and the price stays the same whether you add 1 user or fill the plan.",
   },
   {
     q: "Which plans include the AI assistant?",
     a: "The AI assistant — which answers questions, builds reports, and takes actions for you — is included on Pro, Business, and Enterprise. The Starter plan does not include AI.",
   },
   {
-    q: "Do technicians need a paid seat?",
-    a: "Yes, each technician using the mobile app counts as a user. The Business and Enterprise plans include unlimited users so you can roll out to the whole crew at a flat rate.",
+    q: "What happens if I outgrow my plan's user limit?",
+    a: "Just move up a plan — it's a flat price change, and the new user and product limits apply immediately. Business and Enterprise include unlimited users so you can roll out to the whole crew.",
   },
   {
     q: "Can I try StockPilot before committing?",

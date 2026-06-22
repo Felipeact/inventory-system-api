@@ -1,6 +1,6 @@
 /**
  * @file plans.ts
- * @description Single source of truth for the subscription plan catalog: per-seat
+ * @description Single source of truth for the subscription plan catalog: flat monthly
  * price, entitlement limits (max users / products), and whether the AI assistant is
  * included. Everything else (activation codes, company plan changes, Stripe billing
  * limits, revenue analytics, AI gating) derives from here, so picking a plan
@@ -15,8 +15,8 @@ export const UNLIMITED = 1_000_000;
 export interface PlanDef {
   key: string;
   name: string;
-  /** Monthly price per seat (USD). null = custom / contact-sales. */
-  pricePerSeat: number | null;
+  /** Flat monthly price for the whole plan (USD), regardless of seat count. null = custom. */
+  priceMonthly: number | null;
   /** One-time implementation / onboarding fee (USD). null = custom. */
   onboardingFee: number | null;
   maxUsers: number;
@@ -26,16 +26,16 @@ export interface PlanDef {
 }
 
 /**
- * The four tiers, priced for the field-service software market (typically
- * $60–$350+ per user/month). Starter is the paid entry plan (no AI, small caps);
- * AI is included from Pro upward. Prices are per active user, per month, plus a
- * one-time onboarding fee. Enterprise is custom.
+ * The four tiers, priced for the field-service software market. Each plan has one
+ * FLAT monthly price (not per-seat); the user/product limits below are hard caps,
+ * not billing multipliers. Starter is the paid entry plan (no AI, small caps); AI is
+ * included from Pro upward. Plus a one-time onboarding fee. Enterprise is custom.
  */
 export const PLAN_CATALOG: Record<string, PlanDef> = {
   STARTER: {
     key: 'STARTER',
     name: 'Starter',
-    pricePerSeat: 99,
+    priceMonthly: 199,
     onboardingFee: 500,
     maxUsers: 5,
     maxProducts: 250,
@@ -44,7 +44,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
   PRO: {
     key: 'PRO',
     name: 'Pro',
-    pricePerSeat: 150,
+    priceMonthly: 499,
     onboardingFee: 1500,
     maxUsers: 25,
     maxProducts: UNLIMITED,
@@ -53,7 +53,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
   BUSINESS: {
     key: 'BUSINESS',
     name: 'Business',
-    pricePerSeat: 250,
+    priceMonthly: 999,
     onboardingFee: 3000,
     maxUsers: UNLIMITED,
     maxProducts: UNLIMITED,
@@ -62,7 +62,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
   ENTERPRISE: {
     key: 'ENTERPRISE',
     name: 'Enterprise',
-    pricePerSeat: null,
+    priceMonthly: null,
     onboardingFee: null,
     maxUsers: UNLIMITED,
     maxProducts: UNLIMITED,

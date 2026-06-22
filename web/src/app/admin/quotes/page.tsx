@@ -131,8 +131,8 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const perSeat = PLAN_LIMITS[plan]?.pricePerSeat ?? null;
-  const computed = perSeat != null ? perSeat * Math.max(1, seats) : null;
+  const planPrice = PLAN_LIMITS[plan]?.priceMonthly ?? null;
+  const computed = planPrice; // flat monthly price for the plan
   const effectiveAmount = amountOverride !== "" ? Number(amountOverride) : computed;
 
   // When the operator switches plans, suggest that plan's onboarding fee and re-derive price.
@@ -147,7 +147,7 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
     setErr(null);
     if (!companyName.trim()) return setErr("Enter the prospect's company name.");
     if (!contactEmail.trim()) return setErr("Enter a contact email.");
-    if (perSeat == null && amountOverride === "") {
+    if (planPrice == null && amountOverride === "") {
       return setErr("Enterprise is custom-priced — enter a monthly amount.");
     }
     setBusy(true);
@@ -211,11 +211,11 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
             onChange={(e) => choosePlan(e.target.value as (typeof PLAN_OPTIONS)[number])}
           >
             {PLAN_OPTIONS.map((p) => {
-              const price = PLAN_LIMITS[p]?.pricePerSeat;
+              const price = PLAN_LIMITS[p]?.priceMonthly;
               return (
                 <option key={p} value={p}>
                   {p.charAt(0) + p.slice(1).toLowerCase()}
-                  {price != null ? ` — ${usd.format(price)}/seat` : " — custom"}
+                  {price != null ? ` — ${usd.format(price)}/mo` : " — custom"}
                 </option>
               );
             })}
@@ -235,7 +235,7 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
         <div>
           <label className="label">
             Monthly amount{" "}
-            {perSeat != null && amountOverride === "" && <span className="text-ink-400">(auto)</span>}
+            {planPrice != null && amountOverride === "" && <span className="text-ink-400">(auto)</span>}
           </label>
           <div className="relative">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">$</span>
@@ -245,12 +245,12 @@ function NewQuote({ onCreated }: { onCreated: () => void }) {
               className="input pl-7"
               value={amountOverride !== "" ? amountOverride : computed ?? ""}
               onChange={(e) => setAmountOverride(e.target.value)}
-              placeholder={perSeat == null ? "Enter amount" : undefined}
+              placeholder={planPrice == null ? "Enter amount" : undefined}
             />
           </div>
-          {perSeat != null && (
+          {planPrice != null && (
             <p className="mt-1 text-xs text-ink-400">
-              {usd.format(perSeat)} × {seats} = {usd.format(computed ?? 0)}. Edit to override.
+              Flat {usd.format(planPrice)}/mo for this plan. Edit to override.
             </p>
           )}
         </div>

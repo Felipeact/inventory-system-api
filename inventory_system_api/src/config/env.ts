@@ -94,8 +94,8 @@ const envSchema = z.object({
    * Stripe billing (optional). When STRIPE_SECRET_KEY is unset the /billing endpoints
    * return a friendly 503 and the rest of the API runs normally. Use a test key
    * (sk_test_…) while developing. STRIPE_WEBHOOK_SECRET (whsec_…) verifies incoming
-   * webhook signatures. STRIPE_PRICE_PRO / STRIPE_PRICE_BUSINESS are the recurring
-   * per-seat Price IDs created in the Stripe dashboard for each plan.
+   * webhook signatures. STRIPE_PRICE_STARTER/PRO/BUSINESS are the recurring FLAT
+   * monthly Price IDs created in the Stripe dashboard for each plan (billed quantity 1).
    */
   STRIPE_SECRET_KEY: z.string().default(''),
   STRIPE_WEBHOOK_SECRET: z.string().default(''),

@@ -10,7 +10,7 @@ import { env } from '../../config/env';
 import { PLAN_CATALOG, SELF_SERVE_PLAN_KEYS, planDef } from '../../config/plans';
 
 export interface PlanConfig {
-  /** Stripe recurring per-seat Price ID (empty until configured in env). */
+  /** Stripe recurring flat-monthly Price ID (empty until configured in env). */
   priceId: string;
   maxUsers: number;
   maxProducts: number;

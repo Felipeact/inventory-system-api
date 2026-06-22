@@ -248,11 +248,11 @@ export interface BillingCompany {
   seats: number;
   products: number;
   createdAt?: string;
-  /** Per-seat list price for the plan, or null for custom-priced plans. */
-  pricePerSeat: number | null;
+  /** Flat list price for the plan, or null for custom-priced plans. */
+  planPrice: number | null;
   /** Flat custom monthly amount in effect, or null. */
   monthlyPriceOverride: number | null;
-  /** Contracted monthly revenue (override if set, else seats × per-seat price). */
+  /** Contracted monthly revenue (override if set, else the plan's flat price). */
   monthlyRevenue: number;
   /** Custom-priced plan with no override set yet → counts as $0. */
   needsPricing: boolean;
@@ -260,7 +260,7 @@ export interface BillingCompany {
 
 export interface PlanBreakdown {
   plan: string;
-  pricePerSeat: number | null;
+  planPrice: number | null;
   companies: number;
   activeCompanies: number;
   seats: number;

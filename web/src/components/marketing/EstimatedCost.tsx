@@ -1,10 +1,9 @@
 import { formatCurrency } from "@/lib/utils";
-import { STANDARD_SEAT_PRICE, ESTIMATE_TEAM_SIZES } from "@/lib/plans";
+import { FLAT_PLAN_SUMMARY } from "@/lib/plans";
 
 /**
- * "Estimated monthly cost" example table, in line with how field-service software
- * is commonly quoted. Figures are based on the standard (Pro) per-seat rate; actual
- * cost depends on the plan you choose and your seat count.
+ * "What teams typically spend" table. Pricing is a flat monthly price per plan —
+ * not per seat — so the cost is the same whether you add one user or fill the plan.
  */
 export function EstimatedCost() {
   return (
@@ -12,11 +11,11 @@ export function EstimatedCost() {
       <div className="container-page">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">
-            What teams typically spend
+            One flat price per plan
           </h2>
           <p className="mt-3 text-ink-600">
-            Field-service platforms usually run <strong>$60–$350+ per user / month</strong>. Here&apos;s a
-            quick estimate at our standard {formatCurrency(STANDARD_SEAT_PRICE)}/user rate.
+            No per-seat math. Pick the plan that fits your crew — the monthly price is
+            the same no matter how many users you add (up to the plan&apos;s limit).
           </p>
         </div>
 
@@ -24,18 +23,19 @@ export function EstimatedCost() {
           <table className="w-full">
             <thead>
               <tr className="bg-ink-50 text-left text-xs font-semibold uppercase tracking-wide text-ink-500">
-                <th className="px-6 py-3">Team size</th>
-                <th className="px-6 py-3 text-right">Estimated monthly cost</th>
+                <th className="px-6 py-3">Plan</th>
+                <th className="px-6 py-3 text-right">Flat monthly price</th>
               </tr>
             </thead>
             <tbody>
-              {ESTIMATE_TEAM_SIZES.map((size) => (
-                <tr key={size} className="border-t border-ink-100">
+              {FLAT_PLAN_SUMMARY.map((plan) => (
+                <tr key={plan.name} className="border-t border-ink-100">
                   <td className="px-6 py-4 text-sm font-medium text-ink-800">
-                    {size} users
+                    {plan.name}
+                    <span className="ml-2 text-xs font-normal text-ink-400">{plan.cap}</span>
                   </td>
                   <td className="px-6 py-4 text-right text-lg font-bold text-ink-900">
-                    {formatCurrency(size * STANDARD_SEAT_PRICE)}
+                    {formatCurrency(plan.price)}
                     <span className="text-sm font-normal text-ink-400"> / mo</span>
                   </td>
                 </tr>
@@ -45,9 +45,9 @@ export function EstimatedCost() {
         </div>
 
         <p className="mx-auto mt-5 max-w-xl text-center text-xs text-ink-400">
-          Estimates use the Pro plan rate and exclude a one-time implementation /
-          onboarding fee ({formatCurrency(500)}–{formatCurrency(5000)}+ depending on plan and
-          deployment size). Starter and Business plans are priced differently — see the plans above.
+          Plans exclude a one-time implementation / onboarding fee ({formatCurrency(500)}–
+          {formatCurrency(5000)}+ depending on plan and deployment size). Enterprise is
+          custom-priced — see the plans above.
         </p>
       </div>
     </section>

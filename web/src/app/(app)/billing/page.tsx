@@ -215,7 +215,7 @@ function BillingPageInner() {
                       ) : (
                         <p className="text-2xl font-bold text-ink-900">
                           ${plan.priceMonthly}
-                          <span className="text-sm font-normal text-ink-400"> /{plan.unit}</span>
+                          <span className="text-sm font-normal text-ink-400"> /mo</span>
                         </p>
                       )}
                     </div>
@@ -258,9 +258,9 @@ function BillingPageInner() {
           </div>
 
           <p className="mt-6 text-xs text-ink-400">
-            Payments are processed securely by Stripe. You&apos;re billed per active user; changing
-            seats prorates automatically. Manage your card, invoices, or cancel anytime from the
-            billing portal.
+            Payments are processed securely by Stripe. Each plan is one flat monthly price —
+            switching plans takes effect right away. Manage your card, invoices, or cancel
+            anytime from the billing portal.
           </p>
         </>
       )}

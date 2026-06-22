@@ -76,14 +76,14 @@ export class QuoteService {
     const interval: QuoteInterval = dto?.interval === 'biweekly' ? 'biweekly' : 'monthly';
     const seats = Math.max(1, Math.floor(Number(dto?.seats ?? 1)) || 1);
 
-    // Amount: explicit override wins; otherwise per-seat price × seats. Custom-priced
-    // plans (no per-seat price, e.g. Enterprise) require an explicit amount.
+    // Amount: explicit override wins; otherwise the plan's flat monthly price.
+    // Custom-priced plans (e.g. Enterprise) require an explicit amount.
     let amount = dto?.amount != null && dto.amount !== '' ? Number(dto.amount) : NaN;
     if (!Number.isFinite(amount)) {
-      if (def.pricePerSeat == null) {
+      if (def.priceMonthly == null) {
         throw new AppError(`The ${def.name} plan is custom-priced — provide an amount.`, 400);
       }
-      amount = def.pricePerSeat * seats;
+      amount = def.priceMonthly;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new AppError('amount must be a positive number (USD).', 400);

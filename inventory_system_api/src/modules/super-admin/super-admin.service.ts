@@ -5,7 +5,7 @@ import { AppError } from '../../core/app-error';
 import { generateSuperAdminToken } from '../../utils/jwt';
 import { env } from '../../config/env';
 import { EmailService } from '../email/email.service';
-import { PLAN_MONTHLY_PRICE_PER_SEAT, computeCompanyBilling } from './pricing';
+import { PLAN_MONTHLY_PRICE, computeCompanyBilling } from './pricing';
 import { PLAN_CATALOG } from '../../config/plans';
 import { BillingService } from '../billing/billing.service';
 import { QuoteService } from '../quotes/quote.service';
@@ -279,7 +279,6 @@ export class SuperAdminService {
             const products = Array.isArray(company.products) ? company.products.length : 0;
             const billing = computeCompanyBilling(
                 company.plan,
-                seats,
                 company.monthlyPriceOverride
             );
 
@@ -292,7 +291,7 @@ export class SuperAdminService {
                 seats,
                 products,
                 createdAt: company.createdAt,
-                pricePerSeat: billing.pricePerSeat,
+                planPrice: billing.planPrice,
                 monthlyPriceOverride: billing.monthlyPriceOverride,
                 monthlyRevenue: billing.monthlyRevenue,
                 needsPricing: billing.needsPricing
@@ -303,12 +302,12 @@ export class SuperAdminService {
         const mrr = active.reduce((sum, row) => sum + row.monthlyRevenue, 0);
 
         // Per-plan breakdown (active companies only contribute to MRR).
-        const planBreakdown = Object.keys(PLAN_MONTHLY_PRICE_PER_SEAT).map((plan) => {
+        const planBreakdown = Object.keys(PLAN_MONTHLY_PRICE).map((plan) => {
             const inPlan = rows.filter((row) => row.plan === plan);
             const activeInPlan = inPlan.filter((row) => row.isActive);
             return {
                 plan,
-                pricePerSeat: PLAN_MONTHLY_PRICE_PER_SEAT[plan],
+                planPrice: PLAN_MONTHLY_PRICE[plan],
                 companies: inPlan.length,
                 activeCompanies: activeInPlan.length,
                 seats: activeInPlan.reduce((sum, row) => sum + row.seats, 0),
