@@ -113,17 +113,19 @@ export function Sidebar({
           })}
         </nav>
 
-        <div className="border-t border-ink-100 p-3">
-          <Link
-            href="/billing"
-            className="block rounded-lg bg-gradient-to-br from-brand-600 to-brand-500 p-4 text-white"
-          >
-            <p className="text-sm font-semibold">Upgrade your plan</p>
-            <p className="mt-1 text-xs text-brand-50/90">
-              Unlock unlimited users, trucks & reports.
-            </p>
-          </Link>
-        </div>
+        {hasPermission(PERMISSIONS.MANAGE_USERS) && (
+          <div className="border-t border-ink-100 p-3">
+            <Link
+              href="/billing"
+              className="block rounded-lg bg-gradient-to-br from-brand-600 to-brand-500 p-4 text-white"
+            >
+              <p className="text-sm font-semibold">Upgrade your plan</p>
+              <p className="mt-1 text-xs text-brand-50/90">
+                Unlock unlimited users, trucks & reports.
+              </p>
+            </Link>
+          </div>
+        )}
       </aside>
     </>
   );

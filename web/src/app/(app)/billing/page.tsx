@@ -89,6 +89,18 @@ function BillingPageInner() {
 
   const currentPlan = (status?.plan ?? "").toUpperCase();
 
+  // Billing is admin-only: non-admins don't see plans, pricing, or the upgrade UI.
+  if (!isAdmin) {
+    return (
+      <div>
+        <PageHeader title="Billing & plan" description="Your subscription and plan." />
+        <Banner tone="muted">
+          <AlertCircle size={16} /> Billing is managed by your administrator.
+        </Banner>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader title="Billing & plan" description="Manage your subscription, seats, and invoices." />
@@ -175,15 +187,25 @@ function BillingPageInner() {
                   <div
                     key={plan.id}
                     className={`card flex flex-col p-6 ${
-                      plan.highlighted ? "ring-2 ring-brand-500" : ""
+                      isCurrent
+                        ? "ring-2 ring-brand-600"
+                        : plan.highlighted
+                          ? "ring-2 ring-brand-500"
+                          : ""
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <h3 className="text-lg font-semibold text-ink-900">{plan.name}</h3>
-                      {plan.badge && (
-                        <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600">
-                          {plan.badge}
+                      {isCurrent ? (
+                        <span className="rounded-full bg-brand-600 px-2 py-0.5 text-xs font-medium text-white">
+                          Current
                         </span>
+                      ) : (
+                        plan.badge && (
+                          <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-600">
+                            {plan.badge}
+                          </span>
+                        )
                       )}
                     </div>
                     <p className="mt-1 text-sm text-ink-500">{plan.tagline}</p>
