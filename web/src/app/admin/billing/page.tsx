@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { superAdminApi, superAdminStore, ApiError } from "@/lib/api";
-import type { AdminAnalytics, BillingCompany } from "@/lib/types";
+import type { AdminAnalytics, BillingCompany, RevenuePoint } from "@/lib/types";
 import { Badge } from "@/components/app/ui";
 
 /** Operating-cost assumptions, persisted per operator in localStorage. */
@@ -225,6 +225,8 @@ export default function BillingDashboard() {
               <Kpi icon={Building2} label="Active customers" value={String(data.metrics.activeCompanies)} hint={`${data.metrics.totalCompanies} total`} />
               <Kpi icon={Users} label="Paid seats" value={String(data.metrics.activeSeats)} hint="Across active customers" />
             </div>
+
+            <RevenueTrends data={data} />
 
             <div className="grid gap-6 lg:grid-cols-2">
               <PlanBreakdownCard data={data} />
@@ -487,6 +489,234 @@ function SignupsCard({ data }: { data: AdminAnalytics }) {
         ))}
       </div>
     </section>
+  );
+}
+
+/** Short label for a "YYYY-MM" key, e.g. "Jan" (or "Jan '26" for January). */
+function fmtMonth(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  const name = new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
+  return m === 1 ? `${name} '${String(y).slice(2)}` : name;
+}
+
+type TimeView = "past" | "present" | "future";
+type Granularity = "month" | "year";
+
+/**
+ * Revenue over time with past / present / future and monthly / yearly filters.
+ * Past trend comes from the analytics series; future is a straight-line projection
+ * from current MRR using an editable net-new MRR/month assumption.
+ */
+function RevenueTrends({ data }: { data: AdminAnalytics }) {
+  const [view, setView] = useState<TimeView>("present");
+  const [grain, setGrain] = useState<Granularity>("month");
+  const [range, setRange] = useState<number>(12); // months of history to show
+
+  const series = data.revenueByMonth ?? [];
+  const currentMrr = data.metrics.mrr;
+
+  // Default future growth = average net-new MRR over the last 3 months.
+  const recentGrowth = useMemo(() => {
+    const tail = series.slice(-3);
+    if (tail.length === 0) return 0;
+    return Math.round(tail.reduce((s, p) => s + p.newMrr, 0) / tail.length);
+  }, [series]);
+  const [growth, setGrowth] = useState<number | null>(null);
+  const growthPerMonth = growth ?? recentGrowth;
+
+  // ---- Build the bar series for the chosen view + granularity ----
+  const bars = useMemo<{ label: string; value: number; sub?: number }[]>(() => {
+    if (view === "future") {
+      const periods = grain === "month" ? 12 : 3;
+      const now = new Date();
+      return Array.from({ length: periods }, (_, i) => {
+        const stepMonths = grain === "month" ? i + 1 : (i + 1) * 12;
+        const projected = currentMrr + growthPerMonth * stepMonths;
+        const d = new Date(now.getFullYear(), now.getMonth() + (grain === "month" ? i + 1 : 0), 1);
+        const label =
+          grain === "month"
+            ? fmtMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`)
+            : `${now.getFullYear() + i + 1}`;
+        return { label, value: Math.max(0, projected) };
+      });
+    }
+
+    // Past (and present uses the same trend, just highlighting "now").
+    if (grain === "year") {
+      const byYear = new Map<string, RevenuePoint[]>();
+      for (const p of series) {
+        const y = p.month.slice(0, 4);
+        (byYear.get(y) ?? byYear.set(y, []).get(y)!).push(p);
+      }
+      return Array.from(byYear.entries()).map(([year, pts]) => ({
+        label: year,
+        value: pts[pts.length - 1]?.cumulativeMrr ?? 0, // MRR at year end
+        sub: pts.reduce((s, p) => s + p.newMrr, 0), // new MRR added that year
+      }));
+    }
+
+    const sliced = series.slice(Math.max(0, series.length - range));
+    return sliced.map((p) => ({ label: fmtMonth(p.month), value: p.cumulativeMrr, sub: p.newMrr }));
+  }, [view, grain, range, series, currentMrr, growthPerMonth]);
+
+  const max = Math.max(1, ...bars.map((b) => b.value));
+
+  // ---- Headline numbers per view ----
+  const firstPast = series.slice(Math.max(0, series.length - range))[0]?.cumulativeMrr ?? 0;
+  const pastDelta = currentMrr - firstPast;
+  const pastPct = firstPast > 0 ? (pastDelta / firstPast) * 100 : 0;
+  const futureMrr = currentMrr + growthPerMonth * (grain === "month" ? 12 : 36);
+
+  return (
+    <section className="card p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-ink-900">Revenue over time</h2>
+          <p className="mt-0.5 text-xs text-ink-400">
+            {view === "present"
+              ? "Where you are right now."
+              : view === "past"
+                ? "Estimated from signup dates and current pricing."
+                : `Projected at ${usd.format(growthPerMonth)}/mo net-new MRR.`}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Seg
+            options={[
+              { v: "past", label: "Past" },
+              { v: "present", label: "Present" },
+              { v: "future", label: "Future" },
+            ]}
+            value={view}
+            onChange={(v) => setView(v as TimeView)}
+          />
+          <Seg
+            options={[
+              { v: "month", label: "Monthly" },
+              { v: "year", label: "Yearly" },
+            ]}
+            value={grain}
+            onChange={(v) => setGrain(v as Granularity)}
+          />
+        </div>
+      </div>
+
+      {/* Present: a clean snapshot */}
+      {view === "present" && (
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <Snapshot label="MRR (now)" value={usd.format(currentMrr)} tone="brand" />
+          <Snapshot label="ARR run-rate" value={usd.format(currentMrr * 12)} />
+          <Snapshot
+            label="Last 30d net-new"
+            value={`${recentGrowth >= 0 ? "+" : ""}${usd.format(recentGrowth)}`}
+            tone={recentGrowth >= 0 ? "good" : "bad"}
+          />
+        </div>
+      )}
+
+      {/* Past: range picker + trend */}
+      {view === "past" && grain === "month" && (
+        <div className="mt-4 flex items-center gap-2">
+          {[6, 12, 24].map((r) => (
+            <button
+              key={r}
+              onClick={() => setRange(r)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium ${
+                range === r ? "bg-brand-100 text-brand-700" : "text-ink-500 hover:bg-ink-50"
+              }`}
+            >
+              {r}m
+            </button>
+          ))}
+          <span className="ml-auto text-xs text-ink-500">
+            {pastDelta >= 0 ? "▲" : "▼"} {usd.format(Math.abs(pastDelta))} ({pastPct >= 0 ? "+" : ""}
+            {pastPct.toFixed(0)}%) over {range}m
+          </span>
+        </div>
+      )}
+
+      {/* Future: editable growth assumption */}
+      {view === "future" && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label className="text-xs text-ink-500">Net-new MRR / month</label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-400">$</span>
+            <input
+              type="number"
+              step={50}
+              value={growthPerMonth}
+              onChange={(e) => setGrowth(Number(e.target.value))}
+              className="input h-8 w-28 pl-5 text-sm"
+            />
+          </div>
+          <span className="ml-auto text-xs text-ink-500">
+            → {usd.format(futureMrr)} MRR in {grain === "month" ? "12 months" : "3 years"} (
+            {usd.format(futureMrr * 12)} ARR)
+          </span>
+        </div>
+      )}
+
+      {/* Bar chart (past + future) */}
+      {view !== "present" && (
+        <div className="mt-5 flex h-44 items-end gap-1.5">
+          {bars.map((b, i) => (
+            <div key={`${b.label}-${i}`} className="group flex flex-1 flex-col items-center justify-end gap-1">
+              <span className="text-[10px] font-medium text-ink-500 opacity-0 group-hover:opacity-100">
+                {usd.format(b.value)}
+              </span>
+              <div
+                className={`w-full rounded-t transition ${
+                  view === "future" ? "bg-brand-300/70 group-hover:bg-brand-400" : "bg-brand-400/80 group-hover:bg-brand-500"
+                }`}
+                style={{ height: `${(b.value / max) * 100}%`, minHeight: b.value > 0 ? 4 : 0 }}
+              />
+              <span className="text-[9px] text-ink-300">{b.label}</span>
+            </div>
+          ))}
+          {bars.length === 0 && (
+            <p className="grid w-full place-items-center text-sm text-ink-400">No data for this range yet.</p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** A segmented toggle. */
+function Seg<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { v: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-lg border border-ink-200 p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          onClick={() => onChange(o.v)}
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+            value === o.v ? "bg-brand-600 text-white" : "text-ink-500 hover:text-ink-800"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Snapshot({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "brand" | "good" | "bad" }) {
+  const color =
+    tone === "brand" ? "text-brand-700" : tone === "good" ? "text-green-600" : tone === "bad" ? "text-red-600" : "text-ink-900";
+  return (
+    <div className="rounded-lg border border-ink-100 bg-ink-50/40 p-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-400">{label}</p>
+      <p className={`mt-1 text-2xl font-bold tracking-tight ${color}`}>{value}</p>
+    </div>
   );
 }
 

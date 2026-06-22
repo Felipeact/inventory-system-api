@@ -326,6 +326,10 @@ export class SuperAdminService {
         // Signups by month for the last 12 months (oldest → newest), for a growth chart.
         const signupsByMonth = this.signupsByMonth(rows, 12);
 
+        // Revenue over time — new + cumulative MRR per month (last 24 months) so the
+        // dashboard can show past trend, present, and project the future.
+        const revenueByMonth = this.revenueByMonth(rows, 24);
+
         return {
             metrics: {
                 totalCompanies: rows.length,
@@ -340,8 +344,50 @@ export class SuperAdminService {
             planBreakdown,
             statusBreakdown,
             signupsByMonth,
+            revenueByMonth,
             companies: rows
         };
+    }
+
+    /**
+     * New and cumulative MRR for each of the last `months` calendar months.
+     *  - newMrr: revenue from active companies that signed up *in* that month.
+     *  - cumulativeMrr: revenue from all active companies that had signed up *by the
+     *    end of* that month.
+     * This is an estimate from current per-company revenue and signup dates (we don't
+     * snapshot historical revenue), so it reflects today's prices applied backwards.
+     */
+    private revenueByMonth(
+        rows: Array<{ createdAt: Date | string; monthlyRevenue: number; isActive: boolean }>,
+        months: number
+    ) {
+        const now = new Date();
+        const buckets: { month: string; newMrr: number; cumulativeMrr: number; signups: number }[] = [];
+
+        for (let i = months - 1; i >= 0; i--) {
+            const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1); // exclusive
+            const monthKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+
+            let newMrr = 0;
+            let cumulativeMrr = 0;
+            let signups = 0;
+
+            for (const row of rows) {
+                if (!row.isActive) continue;
+                const created = new Date(row.createdAt);
+                if (Number.isNaN(created.getTime())) continue;
+                if (created < end) cumulativeMrr += row.monthlyRevenue;
+                if (created >= start && created < end) {
+                    newMrr += row.monthlyRevenue;
+                    signups += 1;
+                }
+            }
+
+            buckets.push({ month: monthKey, newMrr, cumulativeMrr, signups });
+        }
+
+        return buckets;
     }
 
     /** Bucket company signups into the last `months` calendar months. */

@@ -282,7 +282,21 @@ export interface AdminAnalytics {
   planBreakdown: PlanBreakdown[];
   statusBreakdown: Record<string, number>;
   signupsByMonth: { month: string; count: number }[];
+  /** New + cumulative MRR per month (last 24 months, oldest → newest). */
+  revenueByMonth: RevenuePoint[];
   companies: BillingCompany[];
+}
+
+/** A single month in the revenue time series. */
+export interface RevenuePoint {
+  /** "YYYY-MM" */
+  month: string;
+  /** Revenue from companies that signed up in this month. */
+  newMrr: number;
+  /** Revenue from all active companies that had signed up by the end of this month. */
+  cumulativeMrr: number;
+  /** Number of companies that signed up this month. */
+  signups: number;
 }
 
 /** Helper to read a product's quantity regardless of API shape. */
