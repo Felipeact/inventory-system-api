@@ -372,11 +372,41 @@ export class TruckStockService {
             technicianId
         );
 
+        // A technician with no assigned truck (or a truck with no template yet) is a
+        // normal empty state — not an error. Return a valid, empty payload so every
+        // client renders a clean "no stock" view instead of failing on a 404.
         if (!truck) {
-            throw new AppError('No truck assigned to this technician', 404);
+            return {
+                id: null,
+                truckId: null,
+                truckNumber: null,
+                plateNumber: null,
+                stockAssignments: [],
+                items: []
+            };
         }
 
-        return truck;
+        // Flatten every assigned template's line items into a single top-level
+        // `items` array. The desktop app reads the nested `stockAssignments`; the
+        // web and mobile apps read this flattened list. Returning both keeps the
+        // response self-consistent so all three clients show the same data.
+        const items = (truck.stockAssignments ?? []).flatMap((assignment: any) =>
+            (assignment.template?.items ?? []).map((item: any) => ({
+                ...item,
+                templateId: assignment.template?.id ?? item.templateId,
+                templateName: assignment.template?.name ?? null,
+                status:
+                    item.currentQuantity <= item.minimumQuantity
+                        ? 'Low Stock'
+                        : 'OK'
+            }))
+        );
+
+        return {
+            ...truck,
+            truckId: truck.id,
+            items
+        };
     }
 
     getLowStockItems(companyId: string) {
