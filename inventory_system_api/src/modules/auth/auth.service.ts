@@ -8,6 +8,7 @@ import { RoleService } from '../role/role.service';
 import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { EmailService } from '../email/email.service';
+import { QuoteService } from '../quotes/quote.service';
 import { PERMISSIONS } from '../../constants/permissions';
 
 /** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
@@ -18,6 +19,7 @@ export class AuthService {
   private roleService = new RoleService();
   private audit = new AuditService();
   private emailService = new EmailService();
+  private quoteService = new QuoteService();
 
   async register(dto: any) {
     const { email, password, code, companyName } = dto;
@@ -57,6 +59,10 @@ export class AuthService {
     });
 
     await this.repo.useCode(code, company.id);
+
+    // If this code came from a sales quote, flip that quote to REGISTERED and link
+    // the new company so the pipeline reflects reality. Best-effort, never blocks.
+    void this.quoteService.markRegistered(code, company.id).catch(() => {});
 
     const accessToken = generateAccessToken({
       userId: user.id,

@@ -179,6 +179,47 @@ model ActivationCode {
   isActive Boolean @default(true)
 }
 
+/**
+ * A super-admin sales "quote" / deal for a PROSPECT that isn't a customer yet.
+ * Drives the pipeline: draft → sent (awaiting payment) → paid → code issued →
+ * registered (plus declined/expired). The prospect's company is created only
+ * when they register with the issued activation code.
+ */
+model Quote {
+  id           String @id @default(uuid())
+  companyName  String
+  contactEmail String
+
+  plan        String @default("PRO")
+  seats       Int    @default(1)
+  // Recurring amount actually billed each cycle (USD). Defaults from the plan
+  // catalog (per-seat × seats) but the operator may override it.
+  amount      Float
+  interval    String @default("monthly") // monthly | biweekly
+  description String?
+  setupFee    Float   @default(0)
+  setupLabel  String?
+
+  // DRAFT | SENT | PAID | CODE_ISSUED | REGISTERED | DECLINED | EXPIRED
+  status String @default("DRAFT")
+
+  // Stripe linkage (card kept on file, auto-charged each cycle).
+  stripeCustomerId        String?
+  stripeCheckoutSessionId String?
+  stripeSubscriptionId    String?
+  checkoutUrl             String?
+
+  // Activation + registration linkage.
+  activationCode   String?
+  activationCodeId String?
+  companyId        String?
+  paidAt           DateTime?
+  codeEmailedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   action    String

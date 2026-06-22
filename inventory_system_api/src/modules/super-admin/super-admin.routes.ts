@@ -3,7 +3,7 @@ import { SuperAdminController } from './super-admin.controller';
 import { superAdminMiddleware } from '../../middleware/super-admin.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { authRateLimiter } from '../../middleware/rate-limit.middleware';
-import { companyIdSchema, createActivationCodeSchema, createQuoteSchema, createSuperAdminSchema, setCompanyPricingSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
+import { companyIdSchema, createActivationCodeSchema, createDealSchema, createQuoteSchema, createSuperAdminSchema, dealIdSchema, setCompanyPricingSchema, superAdminLoginSchema, updateCompanyPlanSchema } from './super-admin.validation';
 
 const router = Router();
 const controller = new SuperAdminController();
@@ -67,6 +67,50 @@ router.post(
   '/quotes/:subId/cancel',
   superAdminMiddleware,
   controller.cancelQuote
+);
+
+// ── Sales pipeline: prospect quotes (deals) ──────────────────────────────────
+// Create a quote for a prospect (company typed by hand), send a pay link, then
+// statuses drive the pipeline. On payment the activation code is auto-issued.
+router.get(
+  '/deals',
+  superAdminMiddleware,
+  controller.listDeals
+);
+
+router.post(
+  '/deals',
+  superAdminMiddleware,
+  validate(createDealSchema),
+  controller.createDeal
+);
+
+router.post(
+  '/deals/:id/send',
+  superAdminMiddleware,
+  validate(dealIdSchema),
+  controller.sendDeal
+);
+
+router.post(
+  '/deals/:id/email-code',
+  superAdminMiddleware,
+  validate(dealIdSchema),
+  controller.emailDealCode
+);
+
+router.post(
+  '/deals/:id/decline',
+  superAdminMiddleware,
+  validate(dealIdSchema),
+  controller.declineDeal
+);
+
+router.delete(
+  '/deals/:id',
+  superAdminMiddleware,
+  validate(dealIdSchema),
+  controller.removeDeal
 );
 
 router.patch(

@@ -85,4 +85,35 @@ export class SuperAdminController extends BaseController {
         const data = await this.service.cancelQuote(req.params.subId as string);
         return this.ok(res, data);
     });
+
+    // ---- Sales pipeline: prospect quotes (deals) ----------------------------
+    createDeal = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.createDeal(req.body);
+        return this.created(res, data);
+    });
+
+    listDeals = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.listDeals();
+        return this.ok(res, data);
+    });
+
+    sendDeal = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.sendDeal(req.params.id as string);
+        return this.ok(res, data);
+    });
+
+    emailDealCode = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.emailDealCode(req.params.id as string);
+        return this.ok(res, data);
+    });
+
+    declineDeal = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.declineDeal(req.params.id as string);
+        return this.ok(res, data);
+    });
+
+    removeDeal = asyncHandler(async (req: AuthRequest, res: Response) => {
+        const data = await this.service.removeDeal(req.params.id as string);
+        return this.ok(res, data);
+    });
 }

@@ -8,6 +8,7 @@ import { EmailService } from '../email/email.service';
 import { PLAN_MONTHLY_PRICE_PER_SEAT, computeCompanyBilling } from './pricing';
 import { PLAN_CATALOG } from '../../config/plans';
 import { BillingService } from '../billing/billing.service';
+import { QuoteService } from '../quotes/quote.service';
 
 /** bcrypt work factor. 12 is the common 2026 baseline for interactive logins. */
 const BCRYPT_ROUNDS = 12;
@@ -25,6 +26,38 @@ export class SuperAdminService {
     private repo = new SuperAdminRepository();
     private emailService = new EmailService();
     private billing = new BillingService();
+    private quotes = new QuoteService();
+
+    // ---- Sales pipeline: prospect quotes (deals) ----------------------------
+    /** Create a draft quote for a prospect (auto-priced from the plan catalog). */
+    createDeal(dto: any) {
+        return this.quotes.create(dto);
+    }
+
+    /** The whole pipeline, newest first. */
+    listDeals() {
+        return this.quotes.list();
+    }
+
+    /** Generate the Stripe checkout link for a quote and email it to the prospect. */
+    sendDeal(id: string) {
+        return this.quotes.send(id);
+    }
+
+    /** (Re)send the issued activation code + registration link to the prospect. */
+    emailDealCode(id: string) {
+        return this.quotes.emailCode(id);
+    }
+
+    /** Decline a quote (cancels its Stripe subscription if any). */
+    declineDeal(id: string) {
+        return this.quotes.decline(id);
+    }
+
+    /** Delete a draft quote. */
+    removeDeal(id: string) {
+        return this.quotes.remove(id);
+    }
 
     async createSuperAdmin(dto: any, bootstrapSecret?: string) {
         const { email, password } = dto;

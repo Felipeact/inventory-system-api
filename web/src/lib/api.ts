@@ -12,6 +12,7 @@ import type {
   AdminCompany,
   AdminQuote,
   CreateQuoteResult,
+  Deal,
   BillingStatus,
   Assignment,
   Asset,
@@ -692,5 +693,35 @@ export const superAdminApi = {
   },
   async cancelQuote(subscriptionId: string) {
     return saRequest(`/quotes/${subscriptionId}/cancel`, { method: "POST" });
+  },
+
+  // ---- Sales pipeline: prospect quotes (deals) ----
+  async listDeals() {
+    return asArray<Deal>(await saRequest("/deals"), "deals");
+  },
+  async createDeal(input: {
+    companyName: string;
+    contactEmail: string;
+    plan: string;
+    seats?: number;
+    amount?: number;
+    interval?: "monthly" | "biweekly";
+    description?: string;
+    setupFee?: number;
+    setupLabel?: string;
+  }) {
+    return saRequest<Deal>("/deals", { method: "POST", body: input });
+  },
+  async sendDeal(id: string) {
+    return saRequest<Deal>(`/deals/${id}/send`, { method: "POST" });
+  },
+  async emailDealCode(id: string) {
+    return saRequest<Deal>(`/deals/${id}/email-code`, { method: "POST" });
+  },
+  async declineDeal(id: string) {
+    return saRequest<Deal>(`/deals/${id}/decline`, { method: "POST" });
+  },
+  async removeDeal(id: string) {
+    return saRequest(`/deals/${id}`, { method: "DELETE" });
   },
 };

@@ -56,6 +56,28 @@ export const createQuoteSchema = z.object({
   })
 });
 
+/** Create a prospect quote (sales pipeline). Amount is optional — derived from the plan. */
+export const createDealSchema = z.object({
+  body: z.object({
+    companyName: z.string().min(1, 'Company name is required').max(200),
+    contactEmail: z.string().email('A valid contact email is required'),
+    plan: z.string().min(1, 'Plan is required'),
+    seats: z.number().int().positive().optional(),
+    amount: z.number().positive('amount must be greater than 0').optional(),
+    interval: z.enum(['monthly', 'biweekly']).optional(),
+    description: z.string().max(500).optional(),
+    setupFee: z.number().nonnegative('setupFee must be 0 or greater').optional(),
+    setupLabel: z.string().max(200).optional()
+  })
+});
+
+/** Routes that act on a quote by its id. */
+export const dealIdSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Quote id is required')
+  })
+});
+
 export const setCompanyPricingSchema = z.object({
   params: z.object({
     id: z.string().min(1, 'Company id is required')

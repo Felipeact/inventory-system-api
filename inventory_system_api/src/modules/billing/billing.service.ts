@@ -21,11 +21,14 @@ import {
   SELF_SERVE_PLANS,
   planForPriceId,
 } from './billing.config';
+import { QuoteService } from '../quotes/quote.service';
 
 export class BillingService {
   private stripe: Stripe | null = env.STRIPE_SECRET_KEY
     ? new Stripe(env.STRIPE_SECRET_KEY)
     : null;
+
+  private quotes = new QuoteService();
 
   private client(): Stripe {
     if (!this.stripe) {
@@ -170,6 +173,11 @@ export class BillingService {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+        // A prospect (not yet a company) paying their sales quote — issue the code.
+        if (session.metadata?.kind === 'prospect_quote') {
+          await this.quotes.markPaidFromCheckout(session);
+          break;
+        }
         const subscriptionId =
           typeof session.subscription === 'string'
             ? session.subscription
@@ -182,11 +190,16 @@ export class BillingService {
       }
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
-        await this.applySubscription(event.data.object as Stripe.Subscription);
+        const sub = event.data.object as Stripe.Subscription;
+        // Prospect-quote subscriptions aren't tied to a company yet — the quote
+        // pipeline owns them (via checkout.session.completed). Don't touch companies.
+        if (sub.metadata?.kind === 'prospect_quote') break;
+        await this.applySubscription(sub);
         break;
       }
       case 'customer.subscription.deleted': {
         const sub = event.data.object as Stripe.Subscription;
+        if (sub.metadata?.kind === 'prospect_quote') break;
         const companyId = await this.companyIdFor(sub);
         // Only suspend the company when its *plan* subscription ends — not when a
         // one-off custom quote/charge subscription is cancelled.

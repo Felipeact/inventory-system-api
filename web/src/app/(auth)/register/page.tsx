@@ -1,20 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 
 export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="grid place-items-center py-20">
+          <Loader2 size={22} className="animate-spin text-ink-400" />
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
+  );
+}
+
+function RegisterForm() {
   const { register } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+
+  // Prefill from a quote email link (…/register?code=…&companyName=…&email=…).
   const [form, setForm] = useState({
-    companyName: "",
-    email: "",
+    companyName: params.get("companyName") ?? "",
+    email: params.get("email") ?? "",
     password: "",
-    code: "",
+    code: params.get("code") ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

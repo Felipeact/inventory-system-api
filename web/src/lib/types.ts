@@ -214,6 +214,30 @@ export interface CreateQuoteResult {
   setupFee: number;
 }
 
+/**
+ * Super-admin sales pipeline: a quote/deal for a prospect (a company not yet in the
+ * system). Moves DRAFT → SENT → PAID → CODE_ISSUED → REGISTERED (plus DECLINED).
+ */
+export interface Deal {
+  id: string;
+  companyName: string;
+  contactEmail: string;
+  plan: string;
+  seats: number;
+  amount: number;
+  interval: "monthly" | "biweekly";
+  description?: string | null;
+  setupFee: number;
+  setupLabel?: string | null;
+  status: "DRAFT" | "SENT" | "PAID" | "CODE_ISSUED" | "REGISTERED" | "DECLINED" | "EXPIRED";
+  checkoutUrl?: string | null;
+  activationCode?: string | null;
+  companyId?: string | null;
+  paidAt?: string | null;
+  codeEmailedAt?: string | null;
+  createdAt?: string;
+}
+
 /** Super-admin: a company's billing row from /super-admin/analytics. */
 export interface BillingCompany {
   id: string;

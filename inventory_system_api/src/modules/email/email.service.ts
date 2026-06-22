@@ -220,6 +220,77 @@ export class EmailService {
     `);
   }
 
+  /**
+   * Send a prospect the Stripe checkout link for their quote. They add a card once,
+   * it's kept on file, and the recurring amount is charged automatically each cycle.
+   */
+  async sendQuoteCheckoutLink(params: {
+    email: string;
+    companyName: string;
+    checkoutUrl: string;
+    amount: number;
+    interval: 'monthly' | 'biweekly';
+    setupFee?: number;
+    description?: string | null;
+  }): Promise<boolean> {
+    const usd = (n: number) => `$${n.toFixed(2)}`;
+    const every = params.interval === 'biweekly' ? 'every 2 weeks' : 'per month';
+    const setupLine =
+      params.setupFee && params.setupFee > 0
+        ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">One-time setup</td><td>${esc(usd(params.setupFee))}</td></tr>`
+        : '';
+    return this.send({
+      to: params.email,
+      subject: `Your quote from Inventory System`,
+      html: layout('Your quote is ready', `
+        <p>Hi ${esc(params.companyName)},</p>
+        <p>Here's your quote. Add a card once to get started — it's kept on file and
+        billed automatically each cycle. You can cancel anytime.</p>
+        <table style="font-size:14px;border-collapse:collapse;margin:8px 0 16px;">
+          <tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Amount</td><td><strong>${esc(usd(params.amount))}</strong> ${esc(every)}</td></tr>
+          ${setupLine}
+          ${params.description ? `<tr><td style="padding:4px 12px 4px 0;color:#6b7280;">Details</td><td>${esc(params.description)}</td></tr>` : ''}
+        </table>
+        <p style="margin:20px 0;">
+          <a href="${esc(params.checkoutUrl)}" style="background:#4f46e5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">Review &amp; pay</a>
+        </p>
+        <p style="color:#6b7280;font-size:13px;">Or paste this link:<br>${esc(params.checkoutUrl)}</p>
+      `),
+    });
+  }
+
+  /**
+   * Send a paid customer their activation code plus a prefilled registration link so
+   * they can create their workspace. Used after payment when there's no setup fee
+   * (or on demand by the operator).
+   */
+  async sendActivationCode(params: {
+    email: string;
+    companyName: string;
+    code: string;
+    plan: string;
+  }): Promise<boolean> {
+    const base = (env.FRONTEND_URL || '').replace(/\/$/, '');
+    const registerUrl =
+      `${base}/register?code=${encodeURIComponent(params.code)}` +
+      `&companyName=${encodeURIComponent(params.companyName)}` +
+      `&email=${encodeURIComponent(params.email)}`;
+    return this.send({
+      to: params.email,
+      subject: 'Your Inventory System account is ready',
+      html: layout('Welcome aboard — set up your workspace', `
+        <p>Hi ${esc(params.companyName)},</p>
+        <p>Payment received — thank you! Use the activation code below to create your
+        company workspace on the <strong>${esc(params.plan)}</strong> plan.</p>
+        <p style="font-size:20px;font-weight:700;letter-spacing:2px;background:#f3f4f6;border-radius:8px;padding:12px 16px;text-align:center;margin:16px 0;">${esc(params.code)}</p>
+        <p style="margin:20px 0;">
+          <a href="${esc(registerUrl)}" style="background:#4f46e5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block;">Create your workspace</a>
+        </p>
+        <p style="color:#6b7280;font-size:13px;">Or go to ${esc(base)}/register and enter the code manually.</p>
+      `),
+    });
+  }
+
   /** Forward a "request a demo" / contact submission to the platform owner. */
   async notifyNewLead(lead: Record<string, unknown>): Promise<boolean> {
     const rows = Object.entries(lead)
