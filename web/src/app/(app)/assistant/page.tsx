@@ -24,13 +24,21 @@ export default function AssistantPage() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  // Why it's disabled: "plan" = not on this plan; "config" = server has no AI key.
+  const [reason, setReason] = useState<"plan" | "config" | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api
       .aiStatus()
-      .then((s) => setEnabled(s.enabled))
-      .catch(() => setEnabled(false));
+      .then((s) => {
+        setEnabled(s.enabled);
+        setReason(s.enabled ? null : !s.planAllowsAi ? "plan" : "config");
+      })
+      .catch(() => {
+        setEnabled(false);
+        setReason("config");
+      });
   }, []);
 
   useEffect(() => {
@@ -72,7 +80,7 @@ export default function AssistantPage() {
         description="Ask questions, build reports, and take actions across your inventory — in plain English."
       />
 
-      {enabled === false && (
+      {enabled === false && reason === "plan" && (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertCircle size={16} />
           The AI assistant isn&apos;t available on your plan. It&apos;s included on{" "}
@@ -81,6 +89,14 @@ export default function AssistantPage() {
             Billing
           </a>{" "}
           to enable it.
+        </div>
+      )}
+      {enabled === false && reason === "config" && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertCircle size={16} />
+          The AI assistant isn&apos;t set up yet. Your plan includes it, but an admin
+          needs to configure the AI key (<code className="font-mono">ANTHROPIC_API_KEY</code>)
+          on the API.
         </div>
       )}
 

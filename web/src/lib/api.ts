@@ -546,7 +546,14 @@ export const api = {
 
   // ---- AI assistant ----
   async aiStatus() {
-    return request<{ enabled: boolean }>("/ai/status");
+    return request<{
+      enabled: boolean;
+      planAllowsAi: boolean;
+      configured: boolean;
+      monthlyLimit: number | null;
+      used: number;
+      remaining: number | null;
+    }>("/ai/status");
   },
   /**
    * Send the full conversation (plain-text turns; the last one is the new user
