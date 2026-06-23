@@ -202,7 +202,7 @@ export const FAQS = [
     a: "Just move up a plan — it's a flat price change, and the new user and product limits apply immediately. Business and Enterprise include unlimited users so you can roll out to the whole crew.",
   },
   {
-    q: "Can I try StockPilot before committing?",
+    q: "Can I try Vantori before committing?",
     a: "Request a personalized demo and we'll set up a guided trial with sample data for your trade, so you can see it in action before you subscribe.",
   },
   {

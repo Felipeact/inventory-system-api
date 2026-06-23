@@ -77,7 +77,7 @@ jobs:
     env:
       # Placeholder API origin so the production build's env guard is satisfied in CI.
       NEXT_PUBLIC_API_BASE_URL: https://api.example.com
-      NEXT_PUBLIC_SITE_URL: https://stockpilot.app
+      NEXT_PUBLIC_SITE_URL: https://vantori.app
 
     steps:
       - uses: actions/checkout@v4

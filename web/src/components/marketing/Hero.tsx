@@ -22,7 +22,7 @@ export function Hero() {
             </span>
           </h1>
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-600">
-            StockPilot connects your warehouse, technicians, and trucks. Scan parts in
+            Vantori connects your warehouse, technicians, and trucks. Scan parts in
             and out, keep every truck stocked to its template, reconcile receipts, and
             see exactly what you have — and what you're missing — in real time.
           </p>
@@ -62,7 +62,7 @@ function HeroMock() {
           <span className="h-3 w-3 rounded-full bg-amber-400" />
           <span className="h-3 w-3 rounded-full bg-green-400" />
           <span className="ml-3 text-xs font-medium text-ink-400">
-            app.stockpilot.app/dashboard
+            app.vantori.app/dashboard
           </span>
         </div>
         <div className="space-y-4 p-5">

@@ -7,7 +7,7 @@ import { BRAND } from "@/lib/brand";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 /** Canonical site URL — drives OG/canonical/sitemap URLs. Override per environment. */
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://stockpilot.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vantori.app";
 
 export const metadata: Metadata = {
   title: {

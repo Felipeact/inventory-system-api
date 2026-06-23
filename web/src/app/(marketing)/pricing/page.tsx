@@ -48,7 +48,7 @@ export default function PricingPage() {
       <section className="border-y border-ink-100 bg-ink-50 py-16">
         <div className="container-page text-center">
           <h2 className="text-xl font-semibold text-ink-900">
-            StockPilot works everywhere your team does
+            Vantori works everywhere your team does
           </h2>
           <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-x-10 gap-y-6">
             {PLATFORMS.map((p) => (

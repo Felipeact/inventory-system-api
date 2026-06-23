@@ -30,7 +30,7 @@ function layout(title: string, bodyHtml: string): string {
   return `
   <div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1e2330;">
     <div style="background:linear-gradient(135deg,#4f46e5,#6366f1);padding:20px 24px;border-radius:12px 12px 0 0;">
-      <h1 style="margin:0;color:#fff;font-size:18px;">StockPilot · Inventory System</h1>
+      <h1 style="margin:0;color:#fff;font-size:18px;">Vantori · Inventory System</h1>
     </div>
     <div style="border:1px solid #e6e8ee;border-top:none;border-radius:0 0 12px 12px;padding:24px;">
       <h2 style="margin:0 0 12px;font-size:18px;">${esc(title)}</h2>

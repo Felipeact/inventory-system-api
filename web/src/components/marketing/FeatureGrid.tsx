@@ -62,7 +62,7 @@ export function FeatureGrid() {
             From the warehouse shelf to the truck to the job
           </h2>
           <p className="mt-4 text-lg text-ink-600">
-            StockPilot replaces spreadsheets, clipboards, and guesswork with a single,
+            Vantori replaces spreadsheets, clipboards, and guesswork with a single,
             connected system your whole team actually uses.
           </p>
         </div>
