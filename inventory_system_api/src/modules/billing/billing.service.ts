@@ -80,8 +80,17 @@ export class BillingService {
     if (!company) throw new AppError('Company not found', 404);
     if (company.stripeCustomerId) return company.stripeCustomerId;
 
+    // Attach a contact email so Stripe can send receipts and dunning ("update your
+    // card") emails directly to the customer. Prefer an admin, else any member.
+    const contact = await prisma.user.findFirst({
+      where: { companyId },
+      orderBy: { role: { name: 'asc' } }, // ADMIN sorts before TECHNICIAN
+      select: { email: true },
+    });
+
     const customer = await this.client().customers.create({
       name: company.name,
+      email: contact?.email,
       metadata: { companyId },
     });
 

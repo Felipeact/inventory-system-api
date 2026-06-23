@@ -23,6 +23,8 @@ export interface PlanDef {
   maxProducts: number;
   /** Whether the in-app AI assistant is included on this plan. */
   aiEnabled: boolean;
+  /** Max AI assistant messages per calendar month. null = unlimited (0 when no AI). */
+  aiMonthlyLimit: number | null;
 }
 
 /**
@@ -40,6 +42,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
     maxUsers: 5,
     maxProducts: 250,
     aiEnabled: false,
+    aiMonthlyLimit: 0,
   },
   PRO: {
     key: 'PRO',
@@ -49,6 +52,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
     maxUsers: 25,
     maxProducts: UNLIMITED,
     aiEnabled: true,
+    aiMonthlyLimit: 1000,
   },
   BUSINESS: {
     key: 'BUSINESS',
@@ -58,6 +62,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
     maxUsers: UNLIMITED,
     maxProducts: UNLIMITED,
     aiEnabled: true,
+    aiMonthlyLimit: 5000,
   },
   ENTERPRISE: {
     key: 'ENTERPRISE',
@@ -67,6 +72,7 @@ export const PLAN_CATALOG: Record<string, PlanDef> = {
     maxUsers: UNLIMITED,
     maxProducts: UNLIMITED,
     aiEnabled: true,
+    aiMonthlyLimit: null,
   },
 };
 
@@ -85,4 +91,9 @@ export function planDef(plan?: string | null): PlanDef {
 /** Whether a plan includes the AI assistant. */
 export function planAllowsAi(plan?: string | null): boolean {
   return planDef(plan).aiEnabled;
+}
+
+/** Monthly AI message cap for a plan. null = unlimited; 0 = no AI. */
+export function planAiLimit(plan?: string | null): number | null {
+  return planDef(plan).aiMonthlyLimit;
 }

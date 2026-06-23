@@ -207,6 +207,6 @@ export const FAQS = [
   },
   {
     q: "What happens to my data if I cancel?",
-    a: "Your data is yours. Export everything to PDF/Excel at any time, and we retain it for 30 days after cancellation so you can come back without losing history.",
+    a: "Your data is yours. Export everything to PDF/Excel at any time. After cancellation your data is preserved so you can reactivate without losing history — and you can ask us to permanently delete it whenever you want.",
   },
 ];

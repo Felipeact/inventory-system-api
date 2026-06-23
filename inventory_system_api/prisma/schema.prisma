@@ -239,6 +239,18 @@ model RevenueSnapshot {
   updatedAt        DateTime @updatedAt
 }
 
+/**
+ * Per-company AI assistant usage, one row per calendar month, so we can enforce the
+ * plan's monthly message cap and protect against runaway Anthropic costs.
+ */
+model AiUsage {
+  companyId String
+  period    String // YYYY-MM
+  count     Int    @default(0)
+
+  @@id([companyId, period])
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   action    String

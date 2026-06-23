@@ -1,0 +1,28 @@
+# Daily scheduled maintenance for the Inventory System API.
+#
+# Calls the secret-protected POST /cron/daily endpoint, which reconciles every
+# company's subscription + open sales quotes against Stripe (recovering any missed
+# webhook) and records the daily revenue snapshot for accurate MRR history.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   API_BASE_URL  e.g. https://inventory-system-api-production.up.railway.app
+#   CRON_SECRET   must match the CRON_SECRET env var set on the API
+name: daily-cron
+
+on:
+  schedule:
+    - cron: "17 7 * * *" # 07:17 UTC daily
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily reconcile + snapshot
+        run: |
+          code=$(curl -s -o /tmp/out.json -w "%{http_code}" -X POST \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.API_BASE_URL }}/cron/daily")
+          echo "HTTP $code"
+          cat /tmp/out.json || true
+          test "$code" = "200"

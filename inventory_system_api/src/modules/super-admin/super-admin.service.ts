@@ -74,6 +74,20 @@ export class SuperAdminService {
         return this.billing.reconcileAll();
     }
 
+    /**
+     * Daily scheduled job: reconcile billing from Stripe, then capture today's revenue
+     * snapshot (getAnalytics records it). Returns a compact summary for the scheduler log.
+     */
+    async runDailyJobs() {
+        const reconcile = await this.reconcileBilling();
+        const analytics = await this.getAnalytics();
+        return {
+            reconcile,
+            mrr: analytics.metrics.mrr,
+            snapshotDays: analytics.mrrHistory?.length ?? 0,
+        };
+    }
+
     async createSuperAdmin(dto: any, bootstrapSecret?: string) {
         const { email, password } = dto;
 

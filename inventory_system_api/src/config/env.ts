@@ -103,6 +103,13 @@ const envSchema = z.object({
   STRIPE_PRICE_PRO: z.string().default(''),
   STRIPE_PRICE_BUSINESS: z.string().default(''),
 
+  /**
+   * Shared secret for the scheduled-jobs endpoint (POST /cron/daily). A scheduler
+   * (Railway cron / GitHub Action) sends it as the `x-cron-secret` header to run the
+   * daily reconcile + revenue snapshot. Leave blank to disable the endpoint.
+   */
+  CRON_SECRET: z.string().default(''),
+
   /** Application version for update endpoints */
   APP_VERSION: z.string().default('1.0.0'),
 

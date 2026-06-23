@@ -33,6 +33,7 @@ import leadRoutes from './modules/lead/lead.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import billingRoutes from './modules/billing/billing.routes';
 import { billingWebhookHandler } from './modules/billing/billing.controller';
+import cronRoutes from './modules/cron/cron.routes';
 
 /** Initialize Express application instance */
 const app = express();
@@ -145,6 +146,7 @@ app.use('/truck-stock', truckStockRoutes);
 app.use('/leads', leadRoutes); // Public demo/contact request capture (emails the owner)
 app.use('/ai', aiRoutes); // AI assistant (chat + tool-driven actions over the company's data)
 app.use('/billing', billingRoutes); // Stripe subscriptions (checkout, customer portal, status)
+app.use('/cron', cronRoutes); // Scheduled jobs (secret-protected): daily reconcile + snapshot
 
 /** JSON 404 for unknown routes so the API never falls back to Express' default HTML page */
 app.use((req, res, next) => {
