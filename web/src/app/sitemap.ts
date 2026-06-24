@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vantori.app";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://stockvio.app";
 
 /** Public marketing routes included in the sitemap. */
 const routes = ["", "/features", "/pricing", "/request-demo"];

@@ -5,7 +5,7 @@ const STEPS = [
     n: "01",
     icon: Truck,
     title: "Template every truck",
-    body: "Build stock templates per trade and assign them to trucks. Vantori knows the target quantity for every part on every van.",
+    body: "Build stock templates per trade and assign them to trucks. Stockvio knows the target quantity for every part on every van.",
   },
   {
     n: "02",

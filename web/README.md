@@ -1,6 +1,6 @@
-# Vantori — Web (`inventory-system-web`)
+# Stockvio — Web (`inventory-system-web`)
 
-Marketing site **and** authenticated web dashboard for the Vantori Inventory &
+Marketing site **and** authenticated web dashboard for the Stockvio Inventory &
 Truck-Stock platform. Built with **Next.js 15 (App Router)**, **TypeScript**, and
 **Tailwind CSS**, talking to the [`inventory-system-api`](../) backend.
 

@@ -178,7 +178,7 @@ const envSchema = z.object({
   CLOUDINARY_API_KEY: z.string().default(''),
   CLOUDINARY_API_SECRET: z.string().default(''),
 
-  /** Optional folder prefix for uploaded assets, e.g. "vantori". Blank = no prefix. */
+  /** Optional folder prefix for uploaded assets, e.g. "stockvio". Blank = no prefix. */
   CLOUDINARY_FOLDER: z.string().default('')
 })
   .superRefine((val, ctx) => {

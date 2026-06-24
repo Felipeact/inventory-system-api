@@ -2,7 +2,7 @@
   "name": "inventory-system-web",
   "version": "1.0.0",
   "private": true,
-  "description": "Marketing site + web dashboard for the Vantori Inventory & Truck-Stock platform.",
+  "description": "Marketing site + web dashboard for the Stockvio Inventory & Truck-Stock platform.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
