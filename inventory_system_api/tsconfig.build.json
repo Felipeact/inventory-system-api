@@ -3,5 +3,8 @@
   "compilerOptions": {
     "noEmit": false
   },
+  // Also compile the seed scripts (prisma/*.ts) so they can run with plain
+  // `node` in the production image, which prunes ts-node with the other dev deps.
+  "include": ["src", "generated", "prisma"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts", "tests"]
 }

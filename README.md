@@ -94,6 +94,22 @@ demoing and never creates duplicates). Override the company name, emails, or pas
 via `SEED_DEMO_COMPANY_NAME`, `SEED_DEMO_ADMIN_EMAIL`, `SEED_DEMO_WAREHOUSE_EMAIL`,
 `SEED_DEMO_TECHNICIAN_EMAIL`, and `SEED_DEMO_PASSWORD`.
 
+### On production
+
+The deploy start command (`railway.json`, and the `docker-compose.yml` for self-hosting)
+runs the demo seed automatically after migrations, using the **compiled** script
+(`node dist/prisma/seed-demo.js` — the production image has no `ts-node`). So the demo
+company is present after every deploy and self-heals back to a clean state on each
+restart. The step is **non-fatal**: if the seed ever fails it is logged and the API still
+boots.
+
+- **Keep it private:** set `SEED_DEMO_PASSWORD` (and optionally the email/company vars) in
+  the Railway dashboard to override the documented default, so the live demo password
+  isn't the one published here.
+- **Turn it off:** remove the `node dist/prisma/seed-demo.js ...` segment from the start
+  command. (The demo company is fully isolated by `companyId`, so it never affects real
+  tenants either way.)
+
 ## Configuration
 
 All environment variables are validated on startup by
