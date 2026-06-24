@@ -143,8 +143,9 @@ const envSchema = z.object({
    * Storage backend for uploaded receipt files.
    * - `local`: write to the local filesystem (dev, or a mounted persistent volume).
    * - `s3`:    write to an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO).
+   * - `cloudinary`: upload to Cloudinary (managed image/file CDN).
    */
-  STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+  STORAGE_DRIVER: z.enum(['local', 's3', 'cloudinary']).default('local'),
 
   /** Directory (relative to cwd) for the local storage driver */
   UPLOAD_DIR: z.string().default('uploads'),
@@ -165,7 +166,20 @@ const envSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().default(''),
 
   /** Public base URL files are served from, e.g. https://cdn.example.com (no trailing slash) */
-  S3_PUBLIC_BASE_URL: z.string().default('')
+  S3_PUBLIC_BASE_URL: z.string().default(''),
+
+  /**
+   * Cloudinary credentials (required when STORAGE_DRIVER=cloudinary). You can either
+   * set the single CLOUDINARY_URL connection string (cloudinary://<key>:<secret>@<cloud>)
+   * — which the SDK reads automatically — or the three discrete values below.
+   */
+  CLOUDINARY_URL: z.string().default(''),
+  CLOUDINARY_CLOUD_NAME: z.string().default(''),
+  CLOUDINARY_API_KEY: z.string().default(''),
+  CLOUDINARY_API_SECRET: z.string().default(''),
+
+  /** Optional folder prefix for uploaded assets, e.g. "vantori". Blank = no prefix. */
+  CLOUDINARY_FOLDER: z.string().default('')
 })
   .superRefine((val, ctx) => {
     // When using S3 storage, credentials and a bucket are mandatory.
@@ -174,6 +188,24 @@ const envSchema = z.object({
         if (!val[key]) {
           ctx.addIssue({ code: 'custom', path: [key], message: `${key} is required when STORAGE_DRIVER=s3` });
         }
+      }
+    }
+
+    // When using Cloudinary, require either CLOUDINARY_URL or the three discrete creds.
+    if (val.STORAGE_DRIVER === 'cloudinary') {
+      const hasUrl = Boolean(val.CLOUDINARY_URL);
+      const hasDiscrete =
+        Boolean(val.CLOUDINARY_CLOUD_NAME) &&
+        Boolean(val.CLOUDINARY_API_KEY) &&
+        Boolean(val.CLOUDINARY_API_SECRET);
+      if (!hasUrl && !hasDiscrete) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['CLOUDINARY_URL'],
+          message:
+            'When STORAGE_DRIVER=cloudinary, set CLOUDINARY_URL, or all of ' +
+            'CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET'
+        });
       }
     }
 

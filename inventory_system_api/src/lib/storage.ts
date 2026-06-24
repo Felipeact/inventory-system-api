@@ -8,6 +8,8 @@
  * - `s3`: writes to an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO). Files
  *   survive redeploys and scale across multiple instances — the recommended setup
  *   for production on ephemeral container platforms.
+ * - `cloudinary`: uploads to Cloudinary (managed image/file CDN). Files survive
+ *   redeploys and are served from Cloudinary's CDN over HTTPS.
  *
  * `putObject` returns the URL that should be persisted in the database and handed
  * back to clients.
@@ -38,6 +40,9 @@ export async function putObject(
 ): Promise<PutResult> {
   if (env.STORAGE_DRIVER === 's3') {
     return putToS3(key, buffer, contentType);
+  }
+  if (env.STORAGE_DRIVER === 'cloudinary') {
+    return putToCloudinary(key, buffer);
   }
   return putToLocal(key, buffer);
 }
@@ -92,4 +97,58 @@ async function putToS3(key: string, buffer: Buffer, contentType: string): Promis
 
   logger.debug({ key, bucket: env.S3_BUCKET }, 'Stored object in S3');
   return { key, url: `${base}/${key}` };
+}
+
+/** Lazily-configured Cloudinary client (only loaded when the cloudinary driver is used). */
+let cloudinaryPromise: Promise<typeof import('cloudinary').v2> | null = null;
+
+async function getCloudinary() {
+  if (!cloudinaryPromise) {
+    cloudinaryPromise = import('cloudinary').then(({ v2: cloudinary }) => {
+      // If CLOUDINARY_URL is set, the SDK reads credentials from it automatically;
+      // otherwise configure from the discrete values. Always serve over HTTPS.
+      if (env.CLOUDINARY_URL) {
+        cloudinary.config({ secure: true });
+      } else {
+        cloudinary.config({
+          cloud_name: env.CLOUDINARY_CLOUD_NAME,
+          api_key: env.CLOUDINARY_API_KEY,
+          api_secret: env.CLOUDINARY_API_SECRET,
+          secure: true
+        });
+      }
+      return cloudinary;
+    });
+  }
+  return cloudinaryPromise;
+}
+
+/**
+ * Upload the object to Cloudinary. The storage `key` (e.g. `receipts/<companyId>/<file>`)
+ * becomes the Cloudinary `public_id` (with its extension stripped, since Cloudinary
+ * appends the resolved format). `resource_type: 'auto'` handles images and PDFs alike.
+ * Returns the CDN `secure_url` to persist and hand back to clients.
+ */
+async function putToCloudinary(key: string, buffer: Buffer): Promise<PutResult> {
+  const cloudinary = await getCloudinary();
+
+  const folder = env.CLOUDINARY_FOLDER.replace(/^\/+|\/+$/g, '');
+  const withoutExt = key.replace(/\.[^/.]+$/, '');
+  const publicId = folder ? `${folder}/${withoutExt}` : withoutExt;
+
+  const result = await new Promise<import('cloudinary').UploadApiResponse>(
+    (resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { public_id: publicId, resource_type: 'auto', overwrite: true },
+        (error, res) => {
+          if (error || !res) return reject(error ?? new Error('Cloudinary upload failed'));
+          resolve(res);
+        }
+      );
+      stream.end(buffer);
+    }
+  );
+
+  logger.debug({ key, publicId: result.public_id }, 'Stored object in Cloudinary');
+  return { key, url: result.secure_url };
 }
