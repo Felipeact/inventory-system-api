@@ -133,6 +133,12 @@ router.post(
 );
 
 router.get(
+  '/receipts/mine',
+  requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
+  controller.getMyReceipts
+);
+
+router.get(
   '/receipts',
   requirePermission(PERMISSIONS.APPROVE_RECEIPTS),
   controller.getReceipts

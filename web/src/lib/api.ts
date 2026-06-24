@@ -326,6 +326,13 @@ export const api = {
   async listReceipts() {
     return asArray<Receipt>(await request("/truck-stock/receipts"), "receipts");
   },
+  /** Receipts uploaded by the signed-in technician (their own spending history). */
+  async listMyReceipts() {
+    return asArray<Receipt>(
+      await request("/truck-stock/receipts/mine"),
+      "receipts",
+    );
+  },
 
   // ---- Reports ----
   async inventoryReport() {

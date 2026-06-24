@@ -525,6 +525,27 @@ export class TruckStockRepository {
         });
     }
 
+    /** Receipts uploaded by a single technician (their own spending history). */
+    findReceiptsByTechnician(companyId: string, technicianId: string) {
+        return prisma.purchaseReceipt.findMany({
+            where: { companyId, technicianId },
+            include: {
+                technician: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                    },
+                },
+                truck: true,
+                items: true,
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
+    }
+
     findReceiptById(receiptId: string) {
         return prisma.purchaseReceipt.findUnique({
             where: { id: receiptId },

@@ -672,6 +672,11 @@ export class TruckStockService {
         return this.repo.findReceipts(companyId);
     }
 
+    /** Receipts uploaded by the signed-in technician (their own spending history). */
+    getMyReceipts(companyId: string, technicianId: string) {
+        return this.repo.findReceiptsByTechnician(companyId, technicianId);
+    }
+
     async addReceiptItem(
         receiptId: string,
         dto: any,
