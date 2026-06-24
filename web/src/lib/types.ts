@@ -138,6 +138,9 @@ export interface Receipt {
   status: string;
   totalAmount?: number | null;
   createdAt?: string;
+  technicianId?: string | null;
+  technician?: { id: string; name: string; email: string } | null;
+  truck?: { id: string; truckNumber: string } | null;
 }
 
 export interface InventoryReport {

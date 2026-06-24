@@ -14,6 +14,7 @@ import {
   ReceiptText,
   Sparkles,
   CreditCard,
+  Wallet,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -31,6 +32,8 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
+  // Dashboard is role-aware (company view for stock roles, personal spending for
+  // technicians), so it has no permission gate — every role gets a landing page.
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "AI Assistant", href: "/assistant", icon: Sparkles },
   { label: "Products", href: "/products", icon: Boxes, perm: PERMISSIONS.VIEW_STOCK },
@@ -43,11 +46,14 @@ const NAV: NavItem[] = [
     perm: PERMISSIONS.VIEW_ASSIGNED_TRUCK_STOCK,
   },
   {
+    // Admin approval tool. Technicians upload receipts from the mobile app and
+    // see their own spend on their dashboard, so this stays approver-only.
     label: "Receipts",
     href: "/receipts",
     icon: ReceiptText,
     perm: PERMISSIONS.APPROVE_RECEIPTS,
   },
+  { label: "Truck Costs", href: "/truck-costs", icon: Wallet, perm: PERMISSIONS.APPROVE_RECEIPTS },
   { label: "Reports", href: "/reports", icon: BarChart3, perm: PERMISSIONS.VIEW_STOCK },
   { label: "Team", href: "/users", icon: Users, perm: PERMISSIONS.MANAGE_USERS },
   { label: "Billing", href: "/billing", icon: CreditCard, perm: PERMISSIONS.MANAGE_USERS },
