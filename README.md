@@ -78,15 +78,15 @@ cd inventory_system_api
 npm run seed:demo
 ```
 
-It creates **"Vantori Demo Co."** (PRO plan) with three logins covering every role, a
+It creates **"Stockvio Demo Co."** (PRO plan) with three logins covering every role, a
 realistic field-service product catalogue (with a few intentionally low-stock items),
 sample assets, and trucks with a stock template:
 
 | Role       | Email                  | Password           |
 | ---------- | ---------------------- | ------------------ |
-| Admin      | `demo@vantori.app`     | `VantoriDemo!2026` |
-| Warehouse  | `warehouse@vantori.app`| `VantoriDemo!2026` |
-| Technician | `tech@vantori.app`     | `VantoriDemo!2026` |
+| Admin      | `demo@stockvio.app`     | `StockvioDemo!2026` |
+| Warehouse  | `warehouse@stockvio.app`| `StockvioDemo!2026` |
+| Technician | `tech@stockvio.app`     | `StockvioDemo!2026` |
 
 The script is **idempotent and resets the demo to a known-good state** on every run
 (records are upserted by their natural keys, so re-running reverts any edits made while

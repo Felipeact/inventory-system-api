@@ -34,7 +34,7 @@ export default function LoginPage() {
     <div>
       <h1 className="text-2xl font-bold tracking-tight text-ink-900">Welcome back</h1>
       <p className="mt-2 text-sm text-ink-500">
-        Sign in to your Vantori dashboard.
+        Sign in to your Stockvio dashboard.
       </p>
 
       <form onSubmit={onSubmit} className="mt-8 space-y-4">

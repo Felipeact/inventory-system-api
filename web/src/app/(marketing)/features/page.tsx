@@ -23,7 +23,7 @@ const DEEP_DIVES = [
     icon: Truck,
     eyebrow: "Truck stock",
     title: "Every truck stocked to its template",
-    body: "Define the ideal kit per trade, assign templates to trucks, and let Vantori track current vs. required quantities. Technicians replenish from their phone; you see gaps before they cost a callback.",
+    body: "Define the ideal kit per trade, assign templates to trucks, and let Stockvio track current vs. required quantities. Technicians replenish from their phone; you see gaps before they cost a callback.",
     points: ["Templates per trade", "Truck assignments", "Use-item from mobile", "Transfer to truck"],
     reverse: true,
   },

@@ -5,7 +5,7 @@ import { DemoForm } from "@/components/marketing/DemoForm";
 export const metadata: Metadata = {
   title: "Request a demo",
   description:
-    "Get a personalized 30-minute demo of Vantori set up for your trade and fleet. See real-time inventory and truck-stock management in action.",
+    "Get a personalized 30-minute demo of Stockvio set up for your trade and fleet. See real-time inventory and truck-stock management in action.",
 };
 
 const BENEFITS = [
@@ -35,10 +35,10 @@ export default async function RequestDemoPage({
         <div>
           <p className="eyebrow">Request a personal demo</p>
           <h1 className="mt-3 text-balance text-4xl font-extrabold tracking-tight text-ink-900 sm:text-5xl">
-            See Vantori running on trucks like yours
+            See Stockvio running on trucks like yours
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink-600">
-            No slideshow. A product specialist sets up Vantori with sample data for your
+            No slideshow. A product specialist sets up Stockvio with sample data for your
             trade, then walks you through the exact workflow your crew would use.
           </p>
 

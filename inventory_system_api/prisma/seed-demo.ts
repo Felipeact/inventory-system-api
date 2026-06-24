@@ -7,7 +7,7 @@
  * the demo company.
  *
  * What it creates (all clearly labelled "Demo"):
- *   1. A demo Company — "Vantori Demo Co." (PRO plan, generous limits).
+ *   1. A demo Company — "Stockvio Demo Co." (PRO plan, generous limits).
  *   2. Three logins covering every role: ADMIN, WAREHOUSE, TECHNICIAN.
  *   3. A realistic field-service product catalogue with inventory levels
  *      (including a few intentionally low-stock items so alerts have something to show).
@@ -31,13 +31,13 @@ import { RoleService } from '../src/modules/role/role.service';
 /** bcrypt work factor — matches the value used by the auth service for real logins. */
 const BCRYPT_ROUNDS = 12;
 
-const DEMO_COMPANY_NAME = process.env.SEED_DEMO_COMPANY_NAME || 'Vantori Demo Co.';
-const DEMO_ADMIN_EMAIL = process.env.SEED_DEMO_ADMIN_EMAIL || 'demo@vantori.app';
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD || 'VantoriDemo!2026';
+const DEMO_COMPANY_NAME = process.env.SEED_DEMO_COMPANY_NAME || 'Stockvio Demo Co.';
+const DEMO_ADMIN_EMAIL = process.env.SEED_DEMO_ADMIN_EMAIL || 'demo@stockvio.app';
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD || 'StockvioDemo!2026';
 
 // Extra role-specific logins share the demo password so the whole app is explorable.
-const DEMO_WAREHOUSE_EMAIL = process.env.SEED_DEMO_WAREHOUSE_EMAIL || 'warehouse@vantori.app';
-const DEMO_TECHNICIAN_EMAIL = process.env.SEED_DEMO_TECHNICIAN_EMAIL || 'tech@vantori.app';
+const DEMO_WAREHOUSE_EMAIL = process.env.SEED_DEMO_WAREHOUSE_EMAIL || 'warehouse@stockvio.app';
+const DEMO_TECHNICIAN_EMAIL = process.env.SEED_DEMO_TECHNICIAN_EMAIL || 'tech@stockvio.app';
 
 /**
  * Demo catalogue. `qty` below `lowStockThreshold` intentionally trips the low-stock

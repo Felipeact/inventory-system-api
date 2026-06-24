@@ -9,7 +9,7 @@ export function CtaBand() {
           <div className="pointer-events-none absolute inset-0 bg-grid-ink opacity-20 [background-size:32px_32px]" />
           <div className="relative">
             <h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              See Vantori on your own trucks
+              See Stockvio on your own trucks
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-brand-50/90">
               A 30-minute personalized demo with sample data for your trade. No slides —
