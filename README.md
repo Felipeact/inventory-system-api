@@ -61,7 +61,54 @@ compiled server. Override secrets via environment variables or an `.env` file.
 | `npm run test:coverage` | Run tests with a coverage report                       |
 | `npm run migrate`       | Create/apply a dev migration                           |
 | `npm run migrate:deploy`| Apply migrations in production (no prompts)            |
+| `npm run seed`          | Bootstrap super-admin + sample activation code         |
+| `npm run seed:demo`     | Provision the isolated demonstration/test company      |
 | `npm run studio`        | Open Prisma Studio                                     |
+
+## Demo / test account
+
+`npm run seed:demo` provisions a **self-contained demonstration company** so the app
+can be shown off or QA'd without touching real customer data. Because the platform is
+multi-tenant and every record is scoped by `companyId`, everything it creates is fully
+isolated — anything you do while logged into the demo account only ever affects the
+demo company.
+
+```bash
+cd inventory_system_api
+npm run seed:demo
+```
+
+It creates **"Vantori Demo Co."** (PRO plan) with three logins covering every role, a
+realistic field-service product catalogue (with a few intentionally low-stock items),
+sample assets, and trucks with a stock template:
+
+| Role       | Email                  | Password           |
+| ---------- | ---------------------- | ------------------ |
+| Admin      | `demo@vantori.app`     | `VantoriDemo!2026` |
+| Warehouse  | `warehouse@vantori.app`| `VantoriDemo!2026` |
+| Technician | `tech@vantori.app`     | `VantoriDemo!2026` |
+
+The script is **idempotent and resets the demo to a known-good state** on every run
+(records are upserted by their natural keys, so re-running reverts any edits made while
+demoing and never creates duplicates). Override the company name, emails, or password
+via `SEED_DEMO_COMPANY_NAME`, `SEED_DEMO_ADMIN_EMAIL`, `SEED_DEMO_WAREHOUSE_EMAIL`,
+`SEED_DEMO_TECHNICIAN_EMAIL`, and `SEED_DEMO_PASSWORD`.
+
+### On production
+
+The deploy start command (`railway.json`, and the `docker-compose.yml` for self-hosting)
+runs the demo seed automatically after migrations, using the **compiled** script
+(`node dist/prisma/seed-demo.js` — the production image has no `ts-node`). So the demo
+company is present after every deploy and self-heals back to a clean state on each
+restart. The step is **non-fatal**: if the seed ever fails it is logged and the API still
+boots.
+
+- **Keep it private:** set `SEED_DEMO_PASSWORD` (and optionally the email/company vars) in
+  the Railway dashboard to override the documented default, so the live demo password
+  isn't the one published here.
+- **Turn it off:** remove the `node dist/prisma/seed-demo.js ...` segment from the start
+  command. (The demo company is fully isolated by `companyId`, so it never affects real
+  tenants either way.)
 
 ## Configuration
 

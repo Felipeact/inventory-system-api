@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "sh -c 'n=0; until npx prisma migrate deploy; do n=$((n+1)); if [ $n -ge 10 ]; then echo \"migrate failed after $n attempts\"; exit 1; fi; echo \"database not reachable yet, retry $n/10 in 3s\"; sleep 3; done; node dist/src/server.js'",
+    "startCommand": "sh -c 'n=0; until npx prisma migrate deploy; do n=$((n+1)); if [ $n -ge 10 ]; then echo \"migrate failed after $n attempts\"; exit 1; fi; echo \"database not reachable yet, retry $n/10 in 3s\"; sleep 3; done; node dist/prisma/seed-demo.js || echo \"demo seed failed (non-fatal), continuing\"; node dist/src/server.js'",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",

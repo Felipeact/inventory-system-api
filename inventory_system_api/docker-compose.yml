@@ -41,8 +41,8 @@ services:
       FRONTEND_URL: "${FRONTEND_URL:-http://localhost:3001}"
     ports:
       - "3000:3000"
-    # Apply pending migrations, then start the compiled server.
-    command: sh -c "npm run migrate:deploy && node dist/src/server.js"
+    # Apply pending migrations, seed the demo company (non-fatal), then start the server.
+    command: sh -c "npm run migrate:deploy && (node dist/prisma/seed-demo.js || echo 'demo seed failed (non-fatal)') && node dist/src/server.js"
 
 volumes:
   db_data:

@@ -8,6 +8,8 @@
     "migrate": "npx prisma migrate dev --name init",
     "migrate:deploy": "npx prisma migrate deploy",
     "seed": "ts-node prisma/seed.ts",
+    "seed:demo": "ts-node prisma/seed-demo.ts",
+    "seed:demo:prod": "node dist/prisma/seed-demo.js",
     "studio": "npx prisma studio",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "npm run generate && tsc -p tsconfig.build.json",

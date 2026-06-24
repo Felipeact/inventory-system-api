@@ -29,8 +29,6 @@ export const PERMISSIONS = {
   TRANSFER_STOCK_TO_TRUCK: "TRANSFER_STOCK_TO_TRUCK",
 } as const;
 
-export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
-
 /** The default roles seeded for every company. */
 export const ROLES = {
   ADMIN: "ADMIN",
