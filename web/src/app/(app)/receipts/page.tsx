@@ -122,7 +122,9 @@ export default function ReceiptsPage() {
                     <td className="px-5 py-3.5 text-ink-600">
                       {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-xs text-ink-500">{r.truckId}</td>
+                    <td className="px-5 py-3.5 text-ink-800">
+                      {r.truck?.truckNumber ? `Truck ${r.truck.truckNumber}` : "—"}
+                    </td>
                     <td className="px-5 py-3.5 text-right text-ink-800">
                       {typeof r.totalAmount === "number" ? `$${r.totalAmount.toFixed(2)}` : "—"}
                     </td>
