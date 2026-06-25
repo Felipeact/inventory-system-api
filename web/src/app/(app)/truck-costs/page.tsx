@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Truck, Wallet, ReceiptText, TrendingUp, ArrowLeft, Calendar } from "lucide-react";
+import { Truck, Wallet, ReceiptText, TrendingUp, ArrowLeft, Calendar, Ban } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -85,6 +85,7 @@ export default function TruckCostsPage() {
   }, [trucks]);
 
   const truckIdOf = (r: Receipt) => r.truckId ?? r.truck?.id ?? "unknown";
+  const isRejected = (r: Receipt) => (r.status || "").toUpperCase() === "REJECTED";
 
   // Receipts within the selected month/year window.
   const inWindow = useMemo(
@@ -92,10 +93,16 @@ export default function TruckCostsPage() {
     [receipts, period],
   );
 
-  // Fleet-wide aggregation (used by the "All trucks" overview).
+  // Rejected receipts are excluded from cost; counting toward cost are the rest.
+  const counted = useMemo(() => inWindow.filter((r) => !isRejected(r)), [inWindow]);
+  const rejectedWindow = useMemo(() => inWindow.filter(isRejected), [inWindow]);
+  const rejectedTotal = rejectedWindow.reduce((s, r) => s + (r.totalAmount ?? 0), 0);
+
+  // Fleet-wide aggregation (used by the "All trucks" overview). Rejected receipts
+  // are excluded — a rejected purchase is not a cost to the company.
   const { rows, total, count } = useMemo(() => {
     const byTruck = new Map<string, TruckCost>();
-    for (const r of inWindow) {
+    for (const r of counted) {
       const id = truckIdOf(r);
       const label = truckLabel.get(id) ?? r.truck?.truckNumber ?? "Unassigned";
       const cur = byTruck.get(id) ?? { truckId: id, label, spend: 0, count: 0 };
@@ -107,11 +114,12 @@ export default function TruckCostsPage() {
     return {
       rows,
       total: rows.reduce((s, r) => s + r.spend, 0),
-      count: inWindow.length,
+      count: counted.length,
     };
-  }, [inWindow, truckLabel]);
+  }, [counted, truckLabel]);
 
-  // Single-truck detail (used when a specific truck is chosen).
+  // Single-truck detail (used when a specific truck is chosen). The table lists
+  // every receipt (so rejections are visible), but spend excludes rejected ones.
   const truckReceipts = useMemo(
     () =>
       inWindow
@@ -119,7 +127,11 @@ export default function TruckCostsPage() {
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? "")),
     [inWindow, selectedTruckId],
   );
-  const truckSpend = truckReceipts.reduce((s, r) => s + (r.totalAmount ?? 0), 0);
+  const truckSpend = truckReceipts
+    .filter((r) => !isRejected(r))
+    .reduce((s, r) => s + (r.totalAmount ?? 0), 0);
+  const truckRejected = truckReceipts.filter(isRejected);
+  const truckRejectedTotal = truckRejected.reduce((s, r) => s + (r.totalAmount ?? 0), 0);
   const selectedLabel = truckLabel.get(selectedTruckId) ?? "Truck";
 
   if (!allowed) {
@@ -194,14 +206,28 @@ export default function TruckCostsPage() {
               icon={Wallet}
               tone="brand"
             />
-            <StatCard label="Receipts" value={truckReceipts.length} icon={ReceiptText} />
+            <StatCard label="Receipts" value={truckReceipts.length - truckRejected.length} icon={ReceiptText} />
             <StatCard
               label="Avg / receipt"
-              value={money(truckReceipts.length ? truckSpend / truckReceipts.length : 0)}
+              value={money(
+                truckReceipts.length - truckRejected.length
+                  ? truckSpend / (truckReceipts.length - truckRejected.length)
+                  : 0,
+              )}
               icon={TrendingUp}
             />
             <StatCard label="Latest receipt" value={dateFmt(truckReceipts[0]?.createdAt)} icon={Calendar} />
           </div>
+
+          {truckRejected.length > 0 && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/60 px-4 py-3 text-sm text-rose-700">
+              <Ban size={16} className="shrink-0" />
+              <span>
+                <strong>{money(truckRejectedTotal)}</strong> across {truckRejected.length} rejected
+                receipt{truckRejected.length === 1 ? "" : "s"} excluded from this truck&rsquo;s spend.
+              </span>
+            </div>
+          )}
 
           <div className="card mt-6 p-6">
             <h2 className="text-base font-semibold text-ink-900">
@@ -259,6 +285,16 @@ export default function TruckCostsPage() {
               tone={priciest ? "warn" : "default"}
             />
           </div>
+
+          {rejectedWindow.length > 0 && (
+            <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/60 px-4 py-3 text-sm text-rose-700">
+              <Ban size={16} className="shrink-0" />
+              <span>
+                <strong>{money(rejectedTotal)}</strong> across {rejectedWindow.length} rejected
+                receipt{rejectedWindow.length === 1 ? "" : "s"} this period — excluded from fleet costs.
+              </span>
+            </div>
+          )}
 
           {rows.length === 0 ? (
             <div className="mt-6">

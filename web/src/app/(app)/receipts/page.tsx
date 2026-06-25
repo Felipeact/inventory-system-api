@@ -10,11 +10,16 @@ import { PageHeader, Loading, ErrorState, EmptyState, Badge } from "@/components
 
 interface ReconcileResult {
   status: string;
-  matched: unknown[];
-  missing: unknown[];
-  extra: unknown[];
-  priceDifferences: unknown[];
+  receiptTotal: number | null;
+  expectedTotal: number;
+  difference: number | null;
+  hasExpected: boolean;
+  pricedItemCount: number;
+  requiredItemCount: number;
 }
+
+const money = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 function statusTone(status: string): "good" | "warn" | "muted" | "default" {
   const s = status.toUpperCase();
@@ -122,7 +127,9 @@ export default function ReceiptsPage() {
                     <td className="px-5 py-3.5 text-ink-600">
                       {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-xs text-ink-500">{r.truckId}</td>
+                    <td className="px-5 py-3.5 text-ink-800">
+                      {r.truck?.truckNumber ? `Truck ${r.truck.truckNumber}` : "—"}
+                    </td>
                     <td className="px-5 py-3.5 text-right text-ink-800">
                       {typeof r.totalAmount === "number" ? `$${r.totalAmount.toFixed(2)}` : "—"}
                     </td>
@@ -191,14 +198,38 @@ export default function ReceiptsPage() {
                 <X size={18} />
               </button>
             </div>
-            <div className="mt-4 space-y-2 text-sm">
+            <div className="mt-4 space-y-3 text-sm">
               <p>Result: <Badge tone={statusTone(recon.result.status)}>{recon.result.status}</Badge></p>
-              <ul className="mt-2 space-y-1 text-ink-600">
-                <li>Matched items: <strong className="text-ink-900">{recon.result.matched?.length ?? 0}</strong></li>
-                <li>Missing (on template, not on receipt): <strong className="text-amber-600">{recon.result.missing?.length ?? 0}</strong></li>
-                <li>Extra (on receipt, not on template): <strong className="text-amber-600">{recon.result.extra?.length ?? 0}</strong></li>
-                <li>Price differences: <strong className="text-amber-600">{recon.result.priceDifferences?.length ?? 0}</strong></li>
-              </ul>
+              <dl className="divide-y divide-ink-100 rounded-xl border border-ink-100">
+                <div className="flex items-center justify-between px-3 py-2">
+                  <dt className="text-ink-500">Receipt total</dt>
+                  <dd className="font-semibold text-ink-900">
+                    {recon.result.receiptTotal != null ? money(recon.result.receiptTotal) : "—"}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2">
+                  <dt className="text-ink-500">Expected (truck template)</dt>
+                  <dd className="font-semibold text-ink-900">{money(recon.result.expectedTotal)}</dd>
+                </div>
+                <div className="flex items-center justify-between px-3 py-2">
+                  <dt className="text-ink-500">Difference</dt>
+                  <dd
+                    className={`font-semibold ${
+                      recon.result.difference && Math.abs(recon.result.difference) > 0.01
+                        ? "text-amber-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    {recon.result.difference != null ? money(recon.result.difference) : "—"}
+                  </dd>
+                </div>
+              </dl>
+              {!recon.result.hasExpected && (
+                <p className="text-xs text-amber-600">
+                  This truck&rsquo;s stock template has no expected prices set, so the total
+                  can&rsquo;t be verified. Add expected prices to the template to enable reconciliation.
+                </p>
+              )}
             </div>
             <div className="mt-5 flex justify-end">
               <button className="btn-primary" onClick={() => setRecon(null)}>Done</button>
