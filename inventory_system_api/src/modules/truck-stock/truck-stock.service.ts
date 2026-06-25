@@ -717,6 +717,13 @@ export class TruckStockService {
         return receiptItem;
     }
 
+    /**
+     * Reconcile a receipt by comparing its declared total against the expected
+     * cost of the truck's assigned stock template(s): the sum of
+     * `expectedPrice x requiredQuantity` for every template item that carries an
+     * expected price. The receipt RECONCILES when its total matches that
+     * expected total (within a cent); otherwise it NEEDS_REVIEW.
+     */
     async reconcileReceipt(receiptId: string, companyId: string, userId: string) {
         const receipt = await this.repo.findReceiptWithItems(receiptId);
 
@@ -724,80 +731,39 @@ export class TruckStockService {
             throw new AppError('Receipt not found', 404);
         }
 
-        const requiredItems =
-            receipt.truck.stockAssignments.flatMap(
-                (assignment) => assignment.template.items
-            );
+        const requiredItems = receipt.truck.stockAssignments.flatMap(
+            (assignment) => assignment.template.items
+        );
 
-        const receiptItems = receipt.items;
-
-        const matched: any[] = [];
-        const missing: any[] = [];
-        const extra: any[] = [];
-        const priceDifferences: any[] = [];
-
+        // Expected total = sum of (expected price x required quantity) over the
+        // template items that actually carry an expected price.
+        let expectedTotal = 0;
+        let pricedItemCount = 0;
         for (const required of requiredItems) {
-            const found = receiptItems.find((item) =>
-                item.itemName.toLowerCase().includes(required.productName.toLowerCase()) ||
-                required.productName.toLowerCase().includes(item.itemName.toLowerCase())
-            );
-
-            if (!found) {
-                missing.push({
-                    requiredItemId: required.id,
-                    productName: required.productName,
-                    requiredQuantity: required.requiredQuantity,
-                    expectedPrice: required.expectedPrice,
-                });
-                continue;
-            }
-
-            matched.push({
-                requiredItemId: required.id,
-                productName: required.productName,
-                receiptItemId: found.id,
-                receiptItemName: found.itemName,
-                receiptQuantity: found.quantity,
-                requiredQuantity: required.requiredQuantity,
-            });
-
-            if (
-                required.expectedPrice !== null &&
-                required.expectedPrice !== undefined &&
-                found.unitPrice !== null &&
-                found.unitPrice !== undefined &&
-                Number(found.unitPrice) !== Number(required.expectedPrice)
-            ) {
-                priceDifferences.push({
-                    productName: required.productName,
-                    expectedPrice: required.expectedPrice,
-                    actualPrice: found.unitPrice,
-                    difference: Number(found.unitPrice) - Number(required.expectedPrice),
-                });
+            if (required.expectedPrice !== null && required.expectedPrice !== undefined) {
+                expectedTotal +=
+                    Number(required.expectedPrice) * Number(required.requiredQuantity ?? 0);
+                pricedItemCount += 1;
             }
         }
+        expectedTotal = Math.round(expectedTotal * 100) / 100;
 
-        for (const receiptItem of receiptItems) {
-            const foundRequired = requiredItems.find((required) =>
-                receiptItem.itemName.toLowerCase().includes(required.productName.toLowerCase()) ||
-                required.productName.toLowerCase().includes(receiptItem.itemName.toLowerCase())
-            );
+        const receiptTotal =
+            receipt.totalAmount !== null && receipt.totalAmount !== undefined
+                ? Number(receipt.totalAmount)
+                : null;
 
-            if (!foundRequired) {
-                extra.push({
-                    receiptItemId: receiptItem.id,
-                    itemName: receiptItem.itemName,
-                    quantity: receiptItem.quantity,
-                    unitPrice: receiptItem.unitPrice,
-                    totalPrice: receiptItem.totalPrice,
-                });
-            }
-        }
+        const hasExpected = pricedItemCount > 0;
+        const difference =
+            receiptTotal !== null
+                ? Math.round((receiptTotal - expectedTotal) * 100) / 100
+                : null;
 
-        const status =
-            missing.length === 0 && extra.length === 0 && priceDifferences.length === 0
-                ? 'RECONCILED'
-                : 'NEEDS_REVIEW';
+        // A one-cent tolerance absorbs floating-point noise.
+        const matches =
+            receiptTotal !== null && hasExpected && Math.abs(difference as number) <= 0.01;
+
+        const status = matches ? 'RECONCILED' : 'NEEDS_REVIEW';
 
         await this.repo.updateReceiptStatus(receiptId, status);
 
@@ -805,16 +771,19 @@ export class TruckStockService {
             'RECONCILE_RECEIPT',
             userId,
             companyId,
-            `Reconciled receipt ${receiptId} with status ${status}`
+            `Reconciled receipt ${receiptId} with status ${status} ` +
+                `(receipt ${receiptTotal ?? 'n/a'} vs expected ${expectedTotal})`
         );
 
         return {
             receiptId,
             status,
-            matched,
-            missing,
-            extra,
-            priceDifferences,
+            receiptTotal,
+            expectedTotal,
+            difference,
+            hasExpected,
+            pricedItemCount,
+            requiredItemCount: requiredItems.length,
         };
     }
 
