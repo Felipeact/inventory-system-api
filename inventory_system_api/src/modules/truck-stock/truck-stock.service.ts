@@ -3,6 +3,7 @@ import { AppError } from '../../core/app-error';
 import { AuditService } from '../../audit/audit.service';
 import { TruckStockRepository } from './truck-stock.repository';
 import { putObject } from '../../lib/storage';
+import { ReceiptExtractionService } from '../ai/receipt-extraction.service';
 
 /** Map of allowed receipt file extensions to their MIME types. */
 const RECEIPT_CONTENT_TYPES: Record<string, string> = {
@@ -26,6 +27,7 @@ function parseAllowance(value: unknown): number | null {
 export class TruckStockService {
     private repo = new TruckStockRepository();
     private audit = new AuditService();
+    private extractor = new ReceiptExtractionService();
 
     async createTruck(dto: any, companyId: string, userId?: string) {
         const { truckNumber, plateNumber, status } = dto;
@@ -652,8 +654,32 @@ export class TruckStockService {
         };
     }
 
+    /**
+     * Read an uploaded receipt (PDF/image, base64) with AI and return its total
+     * and line items without persisting anything — the client uses this to
+     * pre-fill the upload form for the technician to confirm.
+     */
+    async extractReceipt(dto: any, companyId: string, userId: string) {
+        const { fileBase64, fileName } = dto;
+
+        if (!fileBase64 || !fileName) {
+            throw new AppError('fileBase64 and fileName are required', 400);
+        }
+
+        const result = await this.extractor.extract(String(fileBase64), String(fileName));
+
+        await this.audit.log(
+            'EXTRACT_TRUCK_RECEIPT',
+            userId,
+            companyId,
+            `AI-read receipt ${fileName} (${result.items.length} item(s), total ${result.total ?? 'n/a'})`
+        );
+
+        return result;
+    }
+
     async createReceipt(dto: any, companyId: string, userId: string) {
-        const { truckId, fileUrl, totalAmount } = dto;
+        const { truckId, fileUrl, totalAmount, items } = dto;
 
         if (!truckId || !fileUrl) {
             throw new AppError('truckId and fileUrl are required', 400);
@@ -666,6 +692,27 @@ export class TruckStockService {
             fileUrl: fileUrl.trim(),
             totalAmount: totalAmount ? Number(totalAmount) : undefined,
         });
+
+        // Persist any line items captured at upload (e.g. from AI extraction) so
+        // reconciliation and stock booking on approval have data to work with.
+        if (Array.isArray(items)) {
+            for (const item of items) {
+                if (!item || !item.itemName || !item.quantity) continue;
+                await this.repo.createReceiptItem({
+                    receiptId: receipt.id,
+                    itemName: String(item.itemName).trim(),
+                    quantity: Number(item.quantity),
+                    unitPrice:
+                        item.unitPrice !== undefined && item.unitPrice !== null
+                            ? Number(item.unitPrice)
+                            : undefined,
+                    totalPrice:
+                        item.totalPrice !== undefined && item.totalPrice !== null
+                            ? Number(item.totalPrice)
+                            : undefined,
+                });
+            }
+        }
 
         await this.audit.log(
             'UPLOAD_TRUCK_RECEIPT',

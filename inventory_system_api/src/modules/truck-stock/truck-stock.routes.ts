@@ -127,6 +127,12 @@ router.post(
 );
 
 router.post(
+  '/receipts/extract',
+  requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
+  controller.extractReceipt
+);
+
+router.post(
   '/receipts',
   requirePermission(PERMISSIONS.UPLOAD_RECEIPT),
   controller.createReceipt

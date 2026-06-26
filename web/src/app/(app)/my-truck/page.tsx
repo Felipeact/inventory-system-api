@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, X, PackageMinus, Upload } from "lucide-react";
+import { Loader2, X, PackageMinus, Upload, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import type { TruckStockItem, Truck } from "@/lib/types";
+import type { TruckStockItem, Truck, ExtractedReceiptItem } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PageHeader, Loading, ErrorState, EmptyState, Badge } from "@/components/app/ui";
@@ -225,6 +225,9 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
   const [truckId, setTruckId] = useState("");
   const [totalAmount, setTotalAmount] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [items, setItems] = useState<ExtractedReceiptItem[]>([]);
+  const [reading, setReading] = useState(false);
+  const [aiNote, setAiNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -237,6 +240,32 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
       })
       .catch(() => {});
   }, []);
+
+  // When a file is chosen, try to auto-read the total + line items with AI.
+  // It's a convenience — failures are non-fatal and the tech can still type a total.
+  async function onFileChange(picked: File | null) {
+    setFile(picked);
+    setItems([]);
+    setAiNote(null);
+    if (!picked) return;
+    setReading(true);
+    try {
+      const base64 = await fileToBase64(picked);
+      const result = await api.extractReceipt(picked.name, base64);
+      if (result.total != null) setTotalAmount(String(result.total));
+      setItems(result.items);
+      setAiNote(
+        result.items.length
+          ? `Read ${result.items.length} item${result.items.length === 1 ? "" : "s"}` +
+              (result.total != null ? ` · total $${result.total.toFixed(2)}` : "")
+          : "No line items detected — enter the total manually.",
+      );
+    } catch (e2) {
+      setAiNote(e2 instanceof ApiError ? e2.message : "Couldn't auto-read — enter the total manually.");
+    } finally {
+      setReading(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -251,6 +280,7 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
         truckId,
         fileUrl: uploaded.fileUrl,
         totalAmount: totalAmount ? Number(totalAmount) : undefined,
+        items: items.length ? items : undefined,
       });
       onDone();
     } catch (e2) {
@@ -279,13 +309,24 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
             type="file"
             accept="image/*,application/pdf"
             className="input"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
             required
           />
+          {reading && (
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-brand-600">
+              <Loader2 size={13} className="animate-spin" /> Reading receipt with AI…
+            </p>
+          )}
+          {!reading && aiNote && (
+            <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-ink-500">
+              <Sparkles size={13} className="text-brand-500" /> {aiNote}
+            </p>
+          )}
         </div>
         <div>
           <label className="label">Total amount</label>
           <input type="number" min={0} step="0.01" className="input" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} />
+          <p className="mt-1 text-xs text-ink-400">Auto-filled from the receipt when possible — edit if needed.</p>
         </div>
         {err && <p className="text-sm font-medium text-red-600">{err}</p>}
         <div className="flex justify-end gap-3 pt-2">

@@ -23,6 +23,8 @@ import type {
   Movement,
   Product,
   Receipt,
+  ExtractedReceipt,
+  ExtractedReceiptItem,
   TemplateItem,
   Truck,
   TruckStockItem,
@@ -497,7 +499,18 @@ export const api = {
       { method: "POST", body: { fileName, fileContentBase64 } },
     );
   },
-  async createReceipt(input: { truckId: string; fileUrl: string; totalAmount?: number }) {
+  async extractReceipt(fileName: string, fileBase64: string) {
+    return request<ExtractedReceipt>("/truck-stock/receipts/extract", {
+      method: "POST",
+      body: { fileName, fileBase64 },
+    });
+  },
+  async createReceipt(input: {
+    truckId: string;
+    fileUrl: string;
+    totalAmount?: number;
+    items?: ExtractedReceiptItem[];
+  }) {
     return request<Receipt>("/truck-stock/receipts", { method: "POST", body: input });
   },
   async addReceiptItem(
