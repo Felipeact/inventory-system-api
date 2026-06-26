@@ -828,13 +828,79 @@ export class TruckStockService {
 
         const updated = await this.repo.updateReceiptStatus(receiptId, status);
 
+        // Approving a receipt for the first time books its purchased quantities
+        // onto the truck's stock. Guard against re-approval so stock isn't
+        // double-counted, and never let a rejected receipt touch stock.
+        let stockApplied = 0;
+        if (status === 'APPROVED' && receipt.status !== 'APPROVED') {
+            stockApplied = await this.applyReceiptToStock(receiptId, companyId, userId);
+        }
+
         await this.audit.log(
             'UPDATE_RECEIPT_STATUS',
             userId,
             companyId,
-            `Updated receipt ${receiptId} status to ${status}`
+            `Updated receipt ${receiptId} status to ${status}` +
+                (stockApplied ? ` (applied ${stockApplied} item(s) to truck stock)` : '')
         );
 
         return updated;
+    }
+
+    /**
+     * Book an approved receipt's line items onto the truck's stock: each receipt
+     * item is matched by name to a stock item on one of the truck's assigned
+     * templates, and that item's current quantity is increased by the purchased
+     * quantity. Returns the number of stock items updated.
+     */
+    private async applyReceiptToStock(
+        receiptId: string,
+        companyId: string,
+        userId: string
+    ): Promise<number> {
+        const receipt = await this.repo.findReceiptWithItems(receiptId);
+        if (!receipt) return 0;
+
+        const stockItems = receipt.truck.stockAssignments.flatMap(
+            (assignment) => assignment.template.items
+        );
+
+        let applied = 0;
+        for (const line of receipt.items) {
+            const qty = Number(line.quantity);
+            if (!Number.isFinite(qty) || qty <= 0) continue;
+
+            const match = stockItems.find(
+                (s) =>
+                    s.productName.toLowerCase().includes(line.itemName.toLowerCase()) ||
+                    line.itemName.toLowerCase().includes(s.productName.toLowerCase())
+            );
+            if (!match) continue;
+
+            const previousQuantity = match.currentQuantity;
+            await this.repo.increaseTruckStockItemQuantity(match.id, qty);
+
+            await this.repo.createMovement({
+                truckStockItemId: match.id,
+                action: 'RECEIPT_PURCHASE',
+                previousQuantity,
+                newQuantity: previousQuantity + qty,
+                changedById: userId,
+                notes: `Restocked +${qty} from approved receipt ${receiptId}`,
+            });
+
+            applied += 1;
+        }
+
+        if (applied > 0) {
+            await this.audit.log(
+                'APPLY_RECEIPT_TO_TRUCK_STOCK',
+                userId,
+                companyId,
+                `Applied ${applied} item(s) from receipt ${receiptId} to truck stock`
+            );
+        }
+
+        return applied;
     }
 }
