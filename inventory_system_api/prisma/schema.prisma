@@ -307,6 +307,10 @@ model TruckStockTemplate {
   name      String
   tradeType String?
 
+  /** Spending allowance (budget) for a technician on this template, in the
+   * company's currency. Receipts reconcile against this cap. */
+  allowance Float?
+
   companyId   String
   createdById String
 

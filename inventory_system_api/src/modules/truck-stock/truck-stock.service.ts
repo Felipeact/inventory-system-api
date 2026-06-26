@@ -16,6 +16,13 @@ const RECEIPT_CONTENT_TYPES: Record<string, string> = {
     '.csv': 'text/csv'
 };
 
+/** Parse an allowance value from a DTO into a non-negative number, or null. */
+function parseAllowance(value: unknown): number | null {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export class TruckStockService {
     private repo = new TruckStockRepository();
     private audit = new AuditService();
@@ -71,7 +78,7 @@ export class TruckStockService {
     }
 
     async createTemplate(dto: any, companyId: string, userId: string) {
-        const { name, tradeType, items } = dto;
+        const { name, tradeType, items, allowance } = dto;
 
         if (!name) {
             throw new AppError('Template name is required', 400);
@@ -84,6 +91,7 @@ export class TruckStockService {
         const template = await this.repo.createTemplate({
             name: name.trim(),
             tradeType: tradeType?.trim(),
+            allowance: parseAllowance(allowance),
             companyId,
             createdById: userId,
         });
@@ -184,7 +192,7 @@ export class TruckStockService {
     }
 
     async updateTemplate(templateId: string, dto: any, companyId: string) {
-        const { name, tradeType, items } = dto;
+        const { name, tradeType, items, allowance } = dto;
 
         const existingTemplate = await this.repo.findTemplateById(
             templateId,
@@ -201,6 +209,7 @@ export class TruckStockService {
             {
                 name: name !== undefined ? String(name).trim() : undefined,
                 tradeType: tradeType !== undefined ? String(tradeType).trim() : undefined,
+                allowance: allowance !== undefined ? parseAllowance(allowance) : undefined,
             }
         );
 
@@ -718,11 +727,11 @@ export class TruckStockService {
     }
 
     /**
-     * Reconcile a receipt by comparing its declared total against the expected
-     * cost of the truck's assigned stock template(s): the sum of
-     * `expectedPrice x requiredQuantity` for every template item that carries an
-     * expected price. The receipt RECONCILES when its total matches that
-     * expected total (within a cent); otherwise it NEEDS_REVIEW.
+     * Reconcile a receipt against the spending allowance of the truck's assigned
+     * stock template(s). Each template contributes its `allowance` (or, if unset,
+     * the sum of its items' `expectedPrice x requiredQuantity` as a fallback).
+     * The receipt RECONCILES when its total is at or under that allowance (a
+     * budget cap); a total over the allowance NEEDS_REVIEW (overspend).
      */
     async reconcileReceipt(receiptId: string, companyId: string, userId: string) {
         const receipt = await this.repo.findReceiptWithItems(receiptId);
@@ -731,37 +740,46 @@ export class TruckStockService {
             throw new AppError('Receipt not found', 404);
         }
 
-        const requiredItems = receipt.truck.stockAssignments.flatMap(
-            (assignment) => assignment.template.items
-        );
+        const templates = receipt.truck.stockAssignments.map((a) => a.template);
 
-        // Expected total = sum of (expected price x required quantity) over the
-        // template items that actually carry an expected price.
-        let expectedTotal = 0;
-        let pricedItemCount = 0;
-        for (const required of requiredItems) {
-            if (required.expectedPrice !== null && required.expectedPrice !== undefined) {
-                expectedTotal +=
-                    Number(required.expectedPrice) * Number(required.requiredQuantity ?? 0);
-                pricedItemCount += 1;
+        // Allowance = sum across assigned templates of the explicit allowance,
+        // falling back to the priced-items total when a template has none set.
+        let allowanceTotal = 0;
+        let hasExpected = false;
+        for (const t of templates) {
+            if (t.allowance !== null && t.allowance !== undefined) {
+                allowanceTotal += Number(t.allowance);
+                hasExpected = true;
+                continue;
+            }
+            let itemsTotal = 0;
+            let priced = false;
+            for (const item of t.items) {
+                if (item.expectedPrice !== null && item.expectedPrice !== undefined) {
+                    itemsTotal += Number(item.expectedPrice) * Number(item.requiredQuantity ?? 0);
+                    priced = true;
+                }
+            }
+            if (priced) {
+                allowanceTotal += itemsTotal;
+                hasExpected = true;
             }
         }
-        expectedTotal = Math.round(expectedTotal * 100) / 100;
+        allowanceTotal = Math.round(allowanceTotal * 100) / 100;
 
         const receiptTotal =
             receipt.totalAmount !== null && receipt.totalAmount !== undefined
                 ? Number(receipt.totalAmount)
                 : null;
 
-        const hasExpected = pricedItemCount > 0;
         const difference =
             receiptTotal !== null
-                ? Math.round((receiptTotal - expectedTotal) * 100) / 100
+                ? Math.round((receiptTotal - allowanceTotal) * 100) / 100
                 : null;
 
-        // A one-cent tolerance absorbs floating-point noise.
+        // Within budget: total at or under allowance (one-cent tolerance).
         const matches =
-            receiptTotal !== null && hasExpected && Math.abs(difference as number) <= 0.01;
+            receiptTotal !== null && hasExpected && (difference as number) <= 0.01;
 
         const status = matches ? 'RECONCILED' : 'NEEDS_REVIEW';
 
@@ -772,18 +790,19 @@ export class TruckStockService {
             userId,
             companyId,
             `Reconciled receipt ${receiptId} with status ${status} ` +
-                `(receipt ${receiptTotal ?? 'n/a'} vs expected ${expectedTotal})`
+                `(receipt ${receiptTotal ?? 'n/a'} vs allowance ${allowanceTotal})`
         );
 
         return {
             receiptId,
             status,
             receiptTotal,
-            expectedTotal,
+            // `expectedTotal` is the allowance cap (kept name for the web client).
+            expectedTotal: allowanceTotal,
             difference,
             hasExpected,
-            pricedItemCount,
-            requiredItemCount: requiredItems.length,
+            overBudget: difference !== null && difference > 0.01,
+            templateCount: templates.length,
         };
     }
 

@@ -128,6 +128,7 @@ export interface TruckStockTemplate {
   id: string;
   name: string;
   tradeType?: string | null;
+  allowance?: number | null;
   items?: TruckStockItem[];
 }
 

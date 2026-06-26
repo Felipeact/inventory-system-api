@@ -428,6 +428,7 @@ export const api = {
   async createTemplate(input: {
     name: string;
     tradeType?: string;
+    allowance?: number | null;
     items: TemplateItem[];
   }) {
     return request<TruckStockTemplate>("/truck-stock/templates", {
@@ -437,7 +438,7 @@ export const api = {
   },
   async updateTemplate(
     id: string,
-    input: { name?: string; tradeType?: string; items?: TemplateItem[] },
+    input: { name?: string; tradeType?: string; allowance?: number | null; items?: TemplateItem[] },
   ) {
     return request<TruckStockTemplate>(`/truck-stock/templates/${id}`, {
       method: "PUT",
