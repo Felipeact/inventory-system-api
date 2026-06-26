@@ -85,6 +85,7 @@ export class TruckStockRepository {
     createTemplate(data: {
         name: string;
         tradeType?: string;
+        allowance?: number | null;
         companyId: string;
         createdById: string;
     }) {
@@ -138,6 +139,7 @@ export class TruckStockRepository {
         data: {
             name?: string;
             tradeType?: string | null;
+            allowance?: number | null;
         }
     ) {
         await prisma.truckStockTemplate.updateMany({

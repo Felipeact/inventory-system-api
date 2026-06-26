@@ -128,7 +128,22 @@ export interface TruckStockTemplate {
   id: string;
   name: string;
   tradeType?: string | null;
+  allowance?: number | null;
   items?: TruckStockItem[];
+}
+
+export interface ExtractedReceiptItem {
+  itemName: string;
+  quantity: number;
+  unitPrice?: number | null;
+  totalPrice?: number | null;
+}
+
+export interface ExtractedReceipt {
+  total: number | null;
+  currency: string | null;
+  supplier: string | null;
+  items: ExtractedReceiptItem[];
 }
 
 export interface Receipt {

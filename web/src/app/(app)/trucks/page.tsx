@@ -393,7 +393,17 @@ function TemplatesTab({
                   </div>
                 )}
               </div>
-              <p className="mt-3 text-sm text-ink-500">{t.items?.length ?? 0} item(s)</p>
+              <p className="mt-3 text-sm text-ink-500">
+                {t.items?.length ?? 0} item(s)
+                {t.allowance != null && (
+                  <>
+                    {" · "}
+                    <span className="font-medium text-ink-700">
+                      {t.allowance.toLocaleString("en-US", { style: "currency", currency: "USD" })} allowance
+                    </span>
+                  </>
+                )}
+              </p>
             </div>
           ))}
         </div>
@@ -429,6 +439,9 @@ function TemplateModal({
 }) {
   const [name, setName] = useState(template?.name ?? "");
   const [tradeType, setTradeType] = useState(template?.tradeType ?? "");
+  const [allowance, setAllowance] = useState(
+    template?.allowance != null ? String(template.allowance) : "",
+  );
   const [items, setItems] = useState<TemplateItem[]>(
     template?.items?.length
       ? template.items.map((i) => ({ ...i }))
@@ -463,10 +476,27 @@ function TemplateModal({
       setErr("Add at least one item with a product name.");
       return;
     }
+    const allowanceValue = allowance.trim() === "" ? null : Number(allowance);
+    if (allowanceValue != null && (!Number.isFinite(allowanceValue) || allowanceValue < 0)) {
+      setErr("Allowance must be a positive amount.");
+      return;
+    }
     setBusy(true);
     try {
-      if (template) await api.updateTemplate(template.id, { name, tradeType: tradeType || undefined, items: cleaned });
-      else await api.createTemplate({ name, tradeType: tradeType || undefined, items: cleaned });
+      if (template)
+        await api.updateTemplate(template.id, {
+          name,
+          tradeType: tradeType || undefined,
+          allowance: allowanceValue,
+          items: cleaned,
+        });
+      else
+        await api.createTemplate({
+          name,
+          tradeType: tradeType || undefined,
+          allowance: allowanceValue,
+          items: cleaned,
+        });
       onSaved();
     } catch (e2) {
       setErr(e2 instanceof ApiError ? e2.message : "Could not save template");
@@ -485,6 +515,21 @@ function TemplateModal({
           <div>
             <label className="label">Trade type</label>
             <input className="input" value={tradeType} onChange={(e) => setTradeType(e.target.value)} placeholder="e.g. HVAC" />
+          </div>
+          <div>
+            <label className="label">Allowance (budget)</label>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              step="0.01"
+              value={allowance}
+              onChange={(e) => setAllowance(e.target.value)}
+              placeholder="e.g. 2100"
+            />
+            <p className="mt-1 text-xs text-ink-400">
+              Spending cap for this template. Receipts reconcile against it.
+            </p>
           </div>
         </div>
 

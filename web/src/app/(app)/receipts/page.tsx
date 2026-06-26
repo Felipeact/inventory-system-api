@@ -14,8 +14,8 @@ interface ReconcileResult {
   expectedTotal: number;
   difference: number | null;
   hasExpected: boolean;
-  pricedItemCount: number;
-  requiredItemCount: number;
+  overBudget?: boolean;
+  templateCount?: number;
 }
 
 const money = (n: number) =>
@@ -208,26 +208,26 @@ export default function ReceiptsPage() {
                   </dd>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2">
-                  <dt className="text-ink-500">Expected (truck template)</dt>
+                  <dt className="text-ink-500">Allowance (truck template)</dt>
                   <dd className="font-semibold text-ink-900">{money(recon.result.expectedTotal)}</dd>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2">
-                  <dt className="text-ink-500">Difference</dt>
+                  <dt className="text-ink-500">{recon.result.overBudget ? "Over budget by" : "Under budget by"}</dt>
                   <dd
                     className={`font-semibold ${
-                      recon.result.difference && Math.abs(recon.result.difference) > 0.01
-                        ? "text-amber-600"
-                        : "text-green-600"
+                      recon.result.overBudget ? "text-amber-600" : "text-green-600"
                     }`}
                   >
-                    {recon.result.difference != null ? money(recon.result.difference) : "—"}
+                    {recon.result.difference != null
+                      ? money(Math.abs(recon.result.difference))
+                      : "—"}
                   </dd>
                 </div>
               </dl>
               {!recon.result.hasExpected && (
                 <p className="text-xs text-amber-600">
-                  This truck&rsquo;s stock template has no expected prices set, so the total
-                  can&rsquo;t be verified. Add expected prices to the template to enable reconciliation.
+                  This truck&rsquo;s stock template has no allowance set, so the total can&rsquo;t be
+                  verified. Set an allowance on the template to enable reconciliation.
                 </p>
               )}
             </div>
