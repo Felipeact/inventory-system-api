@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, X, PackageMinus, Upload, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import type { TruckStockItem, Truck, ExtractedReceiptItem } from "@/lib/types";
+import type { TruckStockItem, ExtractedReceiptItem } from "@/lib/types";
 import { useAuth } from "@/lib/auth";
 import { PERMISSIONS } from "@/lib/permissions";
 import { PageHeader, Loading, ErrorState, EmptyState, Badge } from "@/components/app/ui";
@@ -221,8 +221,9 @@ function UseItemModal({
 }
 
 function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const [trucks, setTrucks] = useState<Truck[]>([]);
-  const [truckId, setTruckId] = useState("");
+  const [truckId, setTruckId] = useState<string | null>(null);
+  const [truckLabel, setTruckLabel] = useState<string>("");
+  const [loadingTruck, setLoadingTruck] = useState(true);
   const [totalAmount, setTotalAmount] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [items, setItems] = useState<ExtractedReceiptItem[]>([]);
@@ -231,14 +232,20 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // A technician is tied to one truck — use it directly instead of a picker.
   useEffect(() => {
     api
-      .listTrucks()
+      .myTruck()
       .then((t) => {
-        setTrucks(t);
-        if (t.length === 1) setTruckId(t[0].id);
+        setTruckId(t.truckId);
+        setTruckLabel(
+          t.truckNumber
+            ? `Truck ${t.truckNumber}${t.plateNumber ? ` · ${t.plateNumber}` : ""}`
+            : "",
+        );
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingTruck(false));
   }, []);
 
   // When a file is chosen, try to auto-read the total + line items with AI.
@@ -270,7 +277,7 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
-    if (!truckId) return setErr("Select a truck.");
+    if (!truckId) return setErr("No truck is assigned to you — ask an admin to assign one.");
     if (!file) return setErr("Choose a receipt file.");
     setBusy(true);
     try {
@@ -293,15 +300,18 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
     <ModalShell title="Upload receipt" onClose={onClose}>
       <form onSubmit={submit} className="mt-5 space-y-4">
         <div>
-          <label className="label">Truck *</label>
-          <select className="input" value={truckId} onChange={(e) => setTruckId(e.target.value)} required>
-            <option value="" disabled>Select a truck…</option>
-            {trucks.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.truckNumber}{t.plateNumber ? ` · ${t.plateNumber}` : ""}
-              </option>
-            ))}
-          </select>
+          <label className="label">Truck</label>
+          {loadingTruck ? (
+            <p className="inline-flex items-center gap-1.5 text-sm text-ink-500">
+              <Loader2 size={14} className="animate-spin" /> Loading your truck…
+            </p>
+          ) : truckId ? (
+            <div className="input flex items-center bg-ink-50 text-ink-800">{truckLabel}</div>
+          ) : (
+            <p className="text-sm font-medium text-amber-600">
+              No truck is assigned to you. Ask an admin to assign one before uploading receipts.
+            </p>
+          )}
         </div>
         <div>
           <label className="label">Receipt file *</label>
@@ -331,7 +341,7 @@ function UploadReceiptModal({ onClose, onDone }: { onClose: () => void; onDone: 
         {err && <p className="text-sm font-medium text-red-600">{err}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy}>
+          <button type="submit" className="btn-primary" disabled={busy || reading || !truckId}>
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
             Upload
           </button>
