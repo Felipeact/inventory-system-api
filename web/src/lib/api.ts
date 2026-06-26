@@ -319,6 +319,19 @@ export const api = {
       "items",
     );
   },
+  /** The truck assigned to the signed-in technician (nulls when none). */
+  async myTruck() {
+    const data = await request<{
+      truckId: string | null;
+      truckNumber: string | null;
+      plateNumber: string | null;
+    }>("/truck-stock/my-stock");
+    return {
+      truckId: data.truckId ?? null,
+      truckNumber: data.truckNumber ?? null,
+      plateNumber: data.plateNumber ?? null,
+    };
+  },
   async truckLowStock() {
     return asArray<TruckStockItem>(
       await request("/truck-stock/low-stock"),
