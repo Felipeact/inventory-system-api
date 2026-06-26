@@ -153,6 +153,13 @@ export class TruckStockRepository {
         return this.findTemplateById(templateId, companyId);
     }
 
+    /**
+     * Reconcile a template's items against the supplied list. Existing items are
+     * matched by product name and updated in place — preserving their id,
+     * current quantity, and movement history. New names are created; names no
+     * longer present are removed (their movement history is removed first, since
+     * TruckStockMovement references the item with a RESTRICT foreign key).
+     */
     async replaceTemplateItems(
         templateId: string,
         items: Array<{
@@ -165,14 +172,39 @@ export class TruckStockRepository {
             notes?: string;
         }>
     ) {
-        return prisma.$transaction(async (tx) => {
-            await tx.truckStockItem.deleteMany({
-                where: {
-                    templateId,
-                },
-            });
+        const norm = (s: string) => s.trim().toLowerCase();
 
-            for (const item of items) {
+        return prisma.$transaction(async (tx) => {
+            const existing = await tx.truckStockItem.findMany({ where: { templateId } });
+
+            // De-dupe the incoming list by product name (last one wins).
+            const incoming = new Map<string, (typeof items)[number]>();
+            for (const it of items) incoming.set(norm(it.productName), it);
+
+            const keptIds = new Set<string>();
+
+            // Update items that still exist (matched by name); leave currentQuantity untouched.
+            for (const ex of existing) {
+                const match = incoming.get(norm(ex.productName));
+                if (!match) continue;
+                keptIds.add(ex.id);
+                incoming.delete(norm(ex.productName));
+                await tx.truckStockItem.update({
+                    where: { id: ex.id },
+                    data: {
+                        productName: match.productName,
+                        category: match.category,
+                        requiredQuantity: match.requiredQuantity,
+                        minimumQuantity: match.minimumQuantity,
+                        expectedPrice: match.expectedPrice,
+                        unit: match.unit,
+                        notes: match.notes,
+                    },
+                });
+            }
+
+            // Create the brand-new items.
+            for (const item of incoming.values()) {
                 await tx.truckStockItem.create({
                     data: {
                         templateId,
@@ -187,11 +219,17 @@ export class TruckStockRepository {
                 });
             }
 
-            return tx.truckStockItem.findMany({
-                where: {
-                    templateId,
-                },
-            });
+            // Remove items dropped from the template — clear their movements first
+            // to satisfy the RESTRICT foreign key.
+            const removedIds = existing.filter((ex) => !keptIds.has(ex.id)).map((ex) => ex.id);
+            if (removedIds.length > 0) {
+                await tx.truckStockMovement.deleteMany({
+                    where: { truckStockItemId: { in: removedIds } },
+                });
+                await tx.truckStockItem.deleteMany({ where: { id: { in: removedIds } } });
+            }
+
+            return tx.truckStockItem.findMany({ where: { templateId } });
         });
     }
 
@@ -212,6 +250,11 @@ export class TruckStockRepository {
                 where: {
                     templateId,
                 },
+            });
+
+            // Movements reference items with a RESTRICT FK — clear them first.
+            await tx.truckStockMovement.deleteMany({
+                where: { truckStockItem: { templateId } },
             });
 
             await tx.truckStockItem.deleteMany({
