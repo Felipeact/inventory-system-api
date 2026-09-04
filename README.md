@@ -1,202 +1,574 @@
 # Inventory System API
 
-A multi-tenant inventory, asset, and truck-stock management REST API built with
-**Express 5**, **TypeScript**, **Prisma**, and **PostgreSQL**. It provides JWT-based
-authentication with role/permission-based access control (RBAC), audit logging,
-PDF/Excel exports, transactional email, and a super-admin surface for managing
-companies and activation codes.
+This repository contains the Stockvio platform: a multi-tenant inventory, asset, and truck-stock management system for field-service operations, with a Node.js/Express API in `inventory_system_api/` and a Next.js frontend in `web/`.
 
-> The application code lives in [`inventory_system_api/`](inventory_system_api/).
+The API is the source of truth for authentication, authorization, subscription checks, company tenant data, exports, AI usage, billing, and operational reporting. The frontend is a separate app that talks to the API over HTTP.
+
+## Repository layout
+
+```text
+.
+├── README.md
+├── docs/
+├── inventory_system_api/
+│   ├── .env.example
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── jest.config.js
+│   ├── openapi.json
+│   ├── package.json
+│   ├── prisma/
+│   ├── railway.json
+│   ├── src/
+│   └── tests/
+├── web/
+│   ├── .env.example
+│   ├── package.json
+│   └── src/
+└── .github/workflows/ci.yml
+```
+
+## What the project does
+
+The backend implements a company-scoped SaaS platform with:
+
+- Inventory tracking and stock movement records
+- Asset management and lifecycle tracking
+- Vehicle/truck stock templates, assignments, stock transfers, receipts, and item reconciliation
+- RBAC based on roles and permissions per company
+- Company registration through activation codes
+- Super-admin management for activation codes, companies, pricing, and analytics
+- Stripe billing integration with checkout, customer portal, and webhook processing
+- AI assistant endpoints powered by Anthropic
+- Daily scheduled jobs via a shared secret endpoint
+- PDF/CSV/XLSX export endpoints
+- Lead capture for demo requests
+- Audit logging and reporting
+
+The app is designed around a `Company` tenant model and scopes most records to `companyId`, so each company operates in an isolated data domain.
+
+## Architecture and major components
+
+### Backend
+
+The Express application is created in `inventory_system_api/src/app.ts` and mounted at port `3000` by default. It exposes the public health endpoints, security middleware, CORS, request logging, file uploads, and route groups for the main modules:
+
+- `/auth` — registration, login, refresh, logout, reset password, password change
+- `/products` — product creation, listing, low-stock queries, scan-in/scan-out, updates
+- `/assets` — asset CRUD
+- `/users` — user management, permission assignment, profile updates, invites
+- `/reports` — inventory and asset summaries, audit logs, stock movement reports
+- `/exports` — CSV/XLSX/PDF exports for products, assets, users, and company JSON
+- `/super-admin` — activation codes, company analytics, pricing overrides, quote pipeline, Stripe reconciliation
+- `/truck-stock` — truck templates, assignments, item transfers, receipts, stock movements
+- `/leads` — public demo/contact submission endpoint
+- `/ai` — authenticated AI assistant status and chat endpoints
+- `/billing` — Stripe status, checkout, and portal routes
+- `/cron` — machine-to-machine daily jobs endpoint behind `x-cron-secret`
+- `/health`, `/ready`, `/openapi.json`, `/updates/latest` — operational and metadata endpoints
+
+### Data model
+
+The Prisma schema in `inventory_system_api/prisma/schema.prisma` defines the core models, including:
+
+- `Company`
+- `User`
+- `Role`
+- `Permission`
+- `Product`
+- `Inventory`
+- `Asset`
+- `ActivationCode`
+- `Quote`
+- `RevenueSnapshot`
+- `AiUsage`
+- `AuditLog`
+- `Truck`, `TruckStockTemplate`, `TruckStockAssignment`, `TruckStockMovement`, `PurchaseReceipt`
+
+### Authentication and authorization
+
+The app uses:
+
+- JWT access tokens and refresh tokens
+- `authMiddleware` for authenticated routes
+- `subscriptionMiddleware` to require an active company subscription
+- `requirePermission` with a permission catalog in `inventory_system_api/src/constants/permissions.ts`
+- `RoleService` to assign default permissions for `ADMIN`, `WAREHOUSE`, and `TECHNICIAN`
+
+### Storage and billing
+
+The application supports multiple storage backends for uploaded receipts and files:
+
+- `local` — file uploads in `UPLOAD_DIR`, served from `/uploads`
+- `s3` — S3-compatible object storage
+- `cloudinary` — Cloudinary-managed uploads
+
+Billing is optional and uses Stripe when configured. The webhook endpoint is mounted at `/billing/webhook` before the JSON body parser so Stripe signatures can be validated against the raw payload.
 
 ## Tech stack
 
-| Concern          | Choice                                  |
-| ---------------- | --------------------------------------- |
-| Runtime          | Node.js 22                              |
-| Language         | TypeScript                              |
-| HTTP framework   | Express 5                               |
-| ORM / DB         | Prisma + PostgreSQL (node-postgres pool)|
-| Auth             | JWT access + refresh tokens (bearer)    |
-| Validation       | Zod                                     |
-| Logging          | Pino (structured JSON) + pino-http      |
-| Email            | Nodemailer (SMTP)                       |
-| Tests            | Jest + supertest                        |
+| Concern | Implementation |
+| --- | --- |
+| Runtime | Node.js 22 |
+| Language | TypeScript |
+| HTTP server | Express 5 |
+| Database | PostgreSQL via Prisma ORM |
+| Validation | Zod |
+| Auth | JWT bearer tokens + refresh tokens |
+| Security | Helmet, CORS, express-rate-limit |
+| Logging | Pino + pino-http |
+| Email | Nodemailer and/or Resend |
+| File storage | Local filesystem, S3, or Cloudinary |
+| Billing | Stripe |
+| AI | Anthropic Claude API |
+| Exports | PDFKit, xlsx |
+| Testing | Jest + Supertest |
+| Frontend | Next.js 15 + React + Tailwind CSS |
 
-## Getting started
+## Requirements
+
+Before running the backend you need:
+
+- Node.js 22
+- npm
+- PostgreSQL 16 or compatible database
+- Optional: Docker and Docker Compose
+
+The repository includes a Docker setup for local API + PostgreSQL development in `inventory_system_api/docker-compose.yml`.
+
+## Backend setup
+
+From the repository root:
 
 ```bash
 cd inventory_system_api
-cp .env.example .env          # then fill in real values
 npm install
-npm run generate              # generate the Prisma client
-npm run migrate               # apply migrations to your dev database
-npm run dev                   # start with hot reload (ts-node-dev)
+cp .env.example .env
 ```
 
-The API listens on `http://localhost:3000` by default. Visit `/health` for a
-liveness probe and `/openapi.json` for the API schema.
+Then edit `.env` with your local or deployment values.
 
-### With Docker
+### Required environment variables
 
-A multi-stage `Dockerfile` and a `docker-compose.yml` (API + PostgreSQL) are
-provided:
+The app validates environment variables in `inventory_system_api/src/config/env.ts` on startup. The process exits if required values are missing or invalid.
+
+Core required variables:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/inventory?sslmode=disable
+JWT_SECRET=replace-with-a-long-random-secret
+JWT_REFRESH_SECRET=replace-with-a-different-long-random-secret
+```
+
+Other important variables:
+
+```env
+PORT=3000
+NODE_ENV=development
+LOG_LEVEL=info
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+FRONTEND_URL=http://localhost:3001
+```
+
+Optional but commonly used:
+
+```env
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+RESEND_API_KEY=
+RESEND_FROM=onboarding@resend.dev
+ADMIN_NOTIFICATION_EMAIL=felipetiburcioviana@gmail.com
+SUPER_ADMIN_BOOTSTRAP_SECRET=
+ANTHROPIC_API_KEY=
+AI_MODEL=claude-opus-4-8
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_STARTER=
+STRIPE_PRICE_PRO=
+STRIPE_PRICE_BUSINESS=
+CRON_SECRET=
+STORAGE_DRIVER=local
+UPLOAD_DIR=uploads
+S3_BUCKET=
+S3_REGION=auto
+S3_ENDPOINT=
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+S3_PUBLIC_BASE_URL=
+CLOUDINARY_URL=
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_FOLDER=
+```
+
+### Production rules
+
+The environment schema enforces a few production checks:
+
+- `JWT_SECRET` and `JWT_REFRESH_SECRET` must be at least 32 characters and not placeholder values
+- `JWT_REFRESH_SECRET` must differ from `JWT_SECRET`
+- `STORAGE_DRIVER=s3` requires `S3_BUCKET`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`
+- `STORAGE_DRIVER=cloudinary` requires either `CLOUDINARY_URL` or all three discrete Cloudinary credentials
+- `SUPER_ADMIN_BOOTSTRAP_SECRET`, when provided, must be strong in production
+
+## Database setup and migrations
+
+Generate the Prisma client and apply migrations:
 
 ```bash
 cd inventory_system_api
+npm run generate
+npm run migrate
+```
+
+`npm run migrate` runs `npx prisma migrate dev --name init`.
+
+For production or CI-style deployment:
+
+```bash
+npm run migrate:deploy
+```
+
+The project also includes Prisma seed scripts:
+
+```bash
+npm run seed
+npm run seed:demo
+npm run studio
+```
+
+## Running the API locally
+
+### Standard local run
+
+```bash
+cd inventory_system_api
+npm run dev
+```
+
+This starts the server with `ts-node-dev` and listens on `http://localhost:3000` by default.
+
+### Production-like run
+
+```bash
+cd inventory_system_api
+npm run build
+npm start
+```
+
+`npm start` runs the compiled server at `dist/src/server.js`.
+
+### Docker Compose
+
+From `inventory_system_api/`:
+
+```bash
 docker compose up --build
 ```
 
-Compose applies pending migrations (`prisma migrate deploy`) before starting the
-compiled server. Override secrets via environment variables or an `.env` file.
+This starts:
 
-## Scripts
+- PostgreSQL on port `5432`
+- the API on port `3000`
+- a startup command that runs migrations, then tries to run the demo seed, then starts the compiled server
 
-| Script                  | Description                                            |
-| ----------------------- | ------------------------------------------------------ |
-| `npm run dev`           | Start the server with hot reload                       |
-| `npm run build`         | Generate the Prisma client and compile to `dist/`      |
-| `npm start`             | Run the compiled server (`dist/src/server.js`)         |
-| `npm run typecheck`     | Type-check without emitting                            |
-| `npm test`              | Run the Jest test suite                                |
-| `npm run test:coverage` | Run tests with a coverage report                       |
-| `npm run migrate`       | Create/apply a dev migration                           |
-| `npm run migrate:deploy`| Apply migrations in production (no prompts)            |
-| `npm run seed`          | Bootstrap super-admin + sample activation code         |
-| `npm run seed:demo`     | Provision the isolated demonstration/test company      |
-| `npm run studio`        | Open Prisma Studio                                     |
+## Health and operational endpoints
 
-## Demo / test account
+The API exposes these base endpoints:
 
-`npm run seed:demo` provisions a **self-contained demonstration company** so the app
-can be shown off or QA'd without touching real customer data. Because the platform is
-multi-tenant and every record is scoped by `companyId`, everything it creates is fully
-isolated — anything you do while logged into the demo account only ever affects the
-demo company.
+```bash
+curl http://localhost:3000/health
+curl http://localhost:3000/ready
+curl http://localhost:3000/openapi.json
+```
+
+The root endpoint returns a simple string:
+
+```bash
+curl http://localhost:3000/
+```
+
+## Demo and test accounts
+
+The seeded demo company is designed to be safe and isolated from real tenant data.
+
+Run:
 
 ```bash
 cd inventory_system_api
 npm run seed:demo
 ```
 
-It creates **"Stockvio Demo Co."** (PRO plan) with three logins covering every role, a
-realistic field-service product catalogue (with a few intentionally low-stock items),
-sample assets, and trucks with a stock template:
+The script creates a company named `Stockvio Demo Co.` with a PRO plan and three demo users:
 
-| Role       | Email                  | Password           |
-| ---------- | ---------------------- | ------------------ |
-| Admin      | `demo@stockvio.app`     | `StockvioDemo!2026` |
-| Warehouse  | `warehouse@stockvio.app`| `StockvioDemo!2026` |
-| Technician | `tech@stockvio.app`     | `StockvioDemo!2026` |
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `demo@stockvio.app` | `StockvioDemo!2026` |
+| Warehouse | `warehouse@stockvio.app` | `StockvioDemo!2026` |
+| Technician | `tech@stockvio.app` | `StockvioDemo!2026` |
 
-The script is **idempotent and resets the demo to a known-good state** on every run
-(records are upserted by their natural keys, so re-running reverts any edits made while
-demoing and never creates duplicates). Override the company name, emails, or password
-via `SEED_DEMO_COMPANY_NAME`, `SEED_DEMO_ADMIN_EMAIL`, `SEED_DEMO_WAREHOUSE_EMAIL`,
-`SEED_DEMO_TECHNICIAN_EMAIL`, and `SEED_DEMO_PASSWORD`.
+The script is idempotent and safe to re-run. You can override values via environment variables such as:
 
-### On production
+- `SEED_DEMO_COMPANY_NAME`
+- `SEED_DEMO_ADMIN_EMAIL`
+- `SEED_DEMO_WAREHOUSE_EMAIL`
+- `SEED_DEMO_TECHNICIAN_EMAIL`
+- `SEED_DEMO_PASSWORD`
 
-The deploy start command (`railway.json`, and the `docker-compose.yml` for self-hosting)
-runs the demo seed automatically after migrations, using the **compiled** script
-(`node dist/prisma/seed-demo.js` — the production image has no `ts-node`). So the demo
-company is present after every deploy and self-heals back to a clean state on each
-restart. The step is **non-fatal**: if the seed ever fails it is logged and the API still
-boots.
+## API usage
 
-- **Keep it private:** set `SEED_DEMO_PASSWORD` (and optionally the email/company vars) in
-  the Railway dashboard to override the documented default, so the live demo password
-  isn't the one published here.
-- **Turn it off:** remove the `node dist/prisma/seed-demo.js ...` segment from the start
-  command. (The demo company is fully isolated by `companyId`, so it never affects real
-  tenants either way.)
+The `openapi.json` file at `inventory_system_api/openapi.json` is the generated API schema for the project. It includes the main routes and auth expectations.
 
-## Configuration
+### Example auth flow
 
-All environment variables are validated on startup by
-[`src/config/env.ts`](inventory_system_api/src/config/env.ts); the process exits if
-any required value is missing or malformed. See
-[`.env.example`](inventory_system_api/.env.example) for the full list. Notable ones:
+#### Register a company with an activation code
 
-- `DATABASE_URL` — PostgreSQL connection string.
-- `JWT_SECRET` / `JWT_REFRESH_SECRET` — token signing secrets (use long random values).
-- `CORS_ORIGINS` — comma-separated allowed frontend origins (**set this in production**).
-- `DB_POOL_MAX`, `DB_POOL_IDLE_TIMEOUT_MS`, `DB_POOL_CONNECTION_TIMEOUT_MS` — pool tuning.
-- `LOG_LEVEL` / `NODE_ENV` — logging verbosity and environment mode.
-- `SMTP_*`, `FRONTEND_URL` — email delivery and link generation.
-- `STORAGE_DRIVER` (`local`|`s3`|`cloudinary`) + `UPLOAD_DIR` / `S3_*` / `CLOUDINARY_*` — where uploaded receipts are stored.
+```bash
+curl -X POST http://localhost:3000/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "admin@example.com",
+    "password": "Secret123",
+    "code": "TEST-2026",
+    "companyName": "Acme HVAC"
+  }'
+```
 
-## File storage
+#### Login
 
-Uploaded receipt files go through a storage abstraction
-([`src/lib/storage.ts`](inventory_system_api/src/lib/storage.ts)) with three drivers:
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "admin@example.com",
+    "password": "Secret123"
+  }'
+```
 
-- **`local`** (default) — writes under `UPLOAD_DIR` and serves files at `/uploads`.
-  Fine for development or a **mounted persistent volume**.
-- **`s3`** — writes to an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO). Files
-  survive redeploys and work across multiple instances. **Use this on ephemeral
-  container platforms** (Railway/Render/Fly), where the local filesystem is wiped on
-  every deploy. Set `STORAGE_DRIVER=s3` plus `S3_BUCKET`, `S3_ACCESS_KEY_ID`,
-  `S3_SECRET_ACCESS_KEY` (and `S3_ENDPOINT`/`S3_REGION` for R2).
-- **`cloudinary`** — uploads to [Cloudinary](https://cloudinary.com) and serves files
-  from its CDN over HTTPS. Also survives redeploys and needs no volume. Set
-  `STORAGE_DRIVER=cloudinary` plus either `CLOUDINARY_URL`
-  (`cloudinary://<key>:<secret>@<cloud>`, copied from the dashboard) **or** the discrete
-  `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`; optionally
-  `CLOUDINARY_FOLDER` to prefix uploads. The app refuses to boot if the driver is set
-  without credentials.
+The response returns access and refresh tokens. Use the bearer token in the `Authorization` header on protected routes:
 
-## Deployment checklist
+```bash
+curl http://localhost:3000/products \
+  -H 'Authorization: Bearer <access_token>'
+```
 
-1. **Generate strong secrets:** `openssl rand -hex 32` for `JWT_SECRET` and again for
-   `JWT_REFRESH_SECRET` (must differ). With `NODE_ENV=production` the app **refuses to
-   boot** with short or placeholder secrets.
-2. **Set env vars in the platform dashboard** (not a committed `.env`): the secrets
-   above, `DATABASE_URL`, `CORS_ORIGINS` (your real frontend origin), `NODE_ENV=production`,
-   and `SMTP_*`.
-3. **Choose storage:** `STORAGE_DRIVER=s3` with bucket credentials, `STORAGE_DRIVER=cloudinary`
-   with Cloudinary credentials, or a mounted volume with `STORAGE_DRIVER=local`.
-4. **Run migrations on release:** `npm run migrate:deploy`.
+### Public lead endpoint
 
-## API surface
+```bash
+curl -X POST http://localhost:3000/leads \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "company": "Acme HVAC",
+    "message": "Interested in a demo"
+  }'
+```
 
-Routes are mounted under these prefixes (see `src/app.ts`):
+### Super-admin bootstrap
 
-| Prefix         | Purpose                                          |
-| -------------- | ------------------------------------------------ |
-| `/auth`        | Register, login, refresh, logout, password reset |
-| `/products`    | Product catalog management                       |
-| `/assets`      | Asset management                                 |
-| `/users`       | User management (RBAC)                            |
-| `/reports`     | Report generation                                |
-| `/exports`     | PDF / Excel data exports                         |
-| `/super-admin` | Company and activation-code administration       |
-| `/truck-stock` | Truck stock templates, assignments, movements    |
-| `/health`      | Liveness/readiness probe                         |
-| `/openapi.json`| OpenAPI schema                                   |
+A first super-admin can be created via `POST /super-admin/create` when a valid `x-bootstrap-secret` header matches `SUPER_ADMIN_BOOTSTRAP_SECRET`.
+
+```bash
+curl -X POST http://localhost:3000/super-admin/create \
+  -H 'Content-Type: application/json' \
+  -H 'x-bootstrap-secret: your-bootstrap-secret' \
+  -d '{
+    "email": "admin@inventory.local",
+    "password": "ChangeMe!2026",
+    "name": "Platform Admin"
+  }'
+```
+
+When no bootstrap secret is provided, the endpoint is disabled in production and the initial super-admin is normally created via the seed script.
+
+## Main route groups
+
+| Prefix | Purpose |
+| --- | --- |
+| `/auth` | Login, register, refresh, logout, password reset, password change |
+| `/products` | Inventory products, stock levels, scan-in and scan-out |
+| `/assets` | Asset management |
+| `/users` | User CRUD, permission assignment, invites |
+| `/reports` | Inventory summary, asset summary, audit logs, movement history |
+| `/exports` | CSV/XLSX/PDF exports and JSON company exports |
+| `/super-admin` | Activation codes, company list, pricing overrides, quotes, analytics, reconciliation |
+| `/truck-stock` | Truck stock templates, assignments, receipts, transfers, movements |
+| `/leads` | Demo/request forms |
+| `/ai` | AI assistant status and chat |
+| `/billing` | Stripe billing status and checkout/portal actions |
+| `/cron` | Shared-secret scheduled daily jobs |
+| `/health` | Liveness check |
+| `/ready` | Readiness check that queries the database |
+| `/openapi.json` | Generated API schema |
+
+## File storage configuration
+
+The storage layer is built around a driver-based abstraction in the backend. The selected driver is controlled by `STORAGE_DRIVER`.
+
+### `local`
+
+- Default in `.env.example`
+- Writes to `UPLOAD_DIR` relative to the working directory
+- Served under `/uploads`
+- Best for local development or persistent mounted volumes
+
+### `s3`
+
+Set:
+
+```env
+STORAGE_DRIVER=s3
+S3_BUCKET=your-bucket
+S3_REGION=auto
+S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_BASE_URL=https://cdn.example.com
+```
+
+### `cloudinary`
+
+Set either:
+
+```env
+STORAGE_DRIVER=cloudinary
+CLOUDINARY_URL=cloudinary://<key>:<secret>@<cloud>
+```
+
+or:
+
+```env
+STORAGE_DRIVER=cloudinary
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+CLOUDINARY_FOLDER=stockvio
+```
+
+## Frontend setup
+
+The frontend lives in the `web/` folder and is a Next.js app for the public marketing site and dashboard.
+
+### Run the web app
+
+```bash
+cd web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+The web app expects `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_SITE_URL` in `.env.local`.
+
+Example:
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3001
+NEXT_PUBLIC_SALES_EMAIL=sales@stockvio.app
+```
+
+The web app scripts are:
+
+```bash
+npm run dev
+npm run build
+npm start
+npm run lint
+npm run typecheck
+```
 
 ## Testing
+
+The backend test suite runs with Jest and Supertest.
 
 ```bash
 cd inventory_system_api
 npm test
 ```
 
-The suite includes unit tests (JWT, validation schemas, validation/error
-middleware) and integration tests that exercise the Express app via supertest
-(health, CORS, security headers). Continuous integration runs type-checking,
-tests with coverage, and a production build on every push and PR — see
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+Coverage:
+
+```bash
+npm run test:coverage
+```
+
+Type check:
+
+```bash
+npm run typecheck
+```
+
+The CI workflow in `.github/workflows/ci.yml` runs:
+
+- Prisma client generation
+- Prisma migrations
+- TypeScript checks
+- Jest tests with coverage
+- Production build for the API
+- Next.js lint, type check, and build for the web app
+
+## Deployment
+
+### Docker / container deployment
+
+The `inventory_system_api/Dockerfile` builds a Node 22 image, installs Prisma dependencies, runs the TypeScript build, and starts the compiled server. The container exposes port `3000`.
+
+The app also includes `inventory_system_api/docker-compose.yml` for local development with PostgreSQL.
+
+### Railway deployment
+
+`inventory_system_api/railway.json` defines a deployment start command that:
+
+1. waits for the database to become reachable
+2. runs `npx prisma migrate deploy`
+3. tries to run `node dist/prisma/seed-demo.js` (non-fatal)
+4. starts the API server
+
+Set the deployment environment variables in the platform dashboard rather than a committed `.env` file.
+
+### Production checklist
+
+1. Generate strong `JWT_SECRET` and `JWT_REFRESH_SECRET` values.
+2. Set `DATABASE_URL` to your production PostgreSQL instance.
+3. Set `CORS_ORIGINS` to the real frontend origin and `FRONTEND_URL` to the deployed web app.
+4. Provide email settings (`SMTP_*` or `RESEND_API_KEY`).
+5. Decide on file storage: `local`, `s3`, or `cloudinary`.
+6. If using Stripe, populate the Stripe secret keys and plan price IDs.
+7. Run `npm run migrate:deploy` on release.
 
 ## Security notes
 
-- **Authentication is stateless bearer-token (JWT).** Tokens travel in the
-  `Authorization: Bearer <token>` header and refresh tokens in the request body —
-  the API does **not** use cookie-based sessions.
-- **CSRF:** Because the API does not rely on browser-managed credentials (cookies),
-  it is not susceptible to classic CSRF; browsers do not automatically attach
-  `Authorization` headers to cross-site requests. No CSRF token layer is required
-  for the current bearer-token design. If cookie-based auth is ever introduced,
-  add CSRF protection (e.g. the double-submit pattern) at that time.
-- `helmet` sets hardening HTTP headers; `express-rate-limit` throttles general and
-  auth endpoints; Zod validates all inputs; errors are logged with request context
-  and never leak internal details to clients.
+- The API uses bearer-token JWT authentication; no cookie-based auth is used.
+- Protected routes are guarded by auth middleware and subscription checks.
+- `helmet` adds security headers, `express-rate-limit` restricts request volume, and Zod validates request payloads.
+- The app logs structured entries and avoids exposing internal details in client-facing error responses.
+- The `x-cron-secret` header protects the scheduled `/cron/daily` endpoint.
+
+## Useful commands summary
+
+```bash
+cd inventory_system_api
+npm install
+cp .env.example .env
+npm run generate
+npm run migrate
+npm run dev
+npm run build
+npm start
+npm test
+npm run test:coverage
+npm run seed:demo
+```
+
+## Notes
+
+- The repository is intentionally split into an API and a web app.
+- The API has a generated OpenAPI schema at `inventory_system_api/openapi.json`.
+- Most tenant data is scoped by `companyId`.
+- The `web/` app is a separate Next.js project and is not part of the API runtime itself.
